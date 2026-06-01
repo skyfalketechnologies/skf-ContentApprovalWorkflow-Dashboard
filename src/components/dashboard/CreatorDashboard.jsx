@@ -1,49 +1,77 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { useAuth } from '../../hooks/useAuth'
 import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
 import { DraftCard } from './DraftCard'
 import { DraftForm } from '../forms/DraftForm'
 import { AuditTrail } from '../common/AuditTrail'
 
-export function CreatorDashboard() {
-  const { profile } = useAuth()
+export function CreatorDashboard({ profile }) {
   const [showForm, setShowForm] = useState(false)
   const [editingDraft, setEditingDraft] = useState(null)
   const [selectedDraftForAudit, setSelectedDraftForAudit] = useState(null)
+  const [actionError, setActionError] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
   
-  const { data: drafts, loading } = useSupabaseRealtime(
+  const { data: drafts, setData: setDrafts, loading, error: draftsError } = useSupabaseRealtime(
     'content_drafts',
     'creator_id',
-    profile?.id
+    profile.id
   )
 
   const handleDelete = async (draftId) => {
     if (!confirm('Are you sure you want to delete this draft?')) return
+
+    setActionError('')
+    setActionMessage('')
     
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('content_drafts')
       .delete()
       .eq('id', draftId)
+      .eq('creator_id', profile.id)
       .eq('status', 'draft')
+      .select('id')
     
     if (error) {
-      alert('Error deleting draft: ' + error.message)
+      setActionError('Error deleting draft: ' + error.message)
+      return
     }
+
+    if (!data?.length) {
+      setActionError('Draft was not deleted. It may no longer be in draft status, or your account does not have permission.')
+      return
+    }
+
+    setDrafts(currentDrafts => currentDrafts.filter(draft => draft.id !== draftId))
+    setActionMessage('Draft deleted.')
   }
 
   const handleSubmit = async (draftId) => {
-    const { error } = await supabase
+    setActionError('')
+    setActionMessage('')
+
+    const { data, error } = await supabase
       .from('content_drafts')
       .update({ 
-        status: 'pending_review',
-        updated_at: new Date()
+        status: 'pending_review'
       })
       .eq('id', draftId)
+      .eq('creator_id', profile.id)
+      .eq('status', 'draft')
+      .select('*')
     
     if (error) {
-      alert('Error submitting for review: ' + error.message)
+      setActionError('Error submitting for review: ' + error.message)
+      return
     }
+
+    if (!data?.length) {
+      setActionError('Draft was not submitted. It may no longer be in draft status, or your account does not have permission.')
+      return
+    }
+
+    setDrafts(currentDrafts => currentDrafts.map(draft => draft.id === draftId ? data[0] : draft))
+    setActionMessage('Draft submitted for review.')
   }
 
   const handleEdit = (draft) => {
@@ -89,6 +117,24 @@ export function CreatorDashboard() {
           + New Draft
         </button>
       </div>
+
+      {draftsError && (
+        <div style={{ marginBottom: '16px', color: '#991b1b' }}>
+          Error loading drafts: {draftsError}
+        </div>
+      )}
+
+      {actionError && (
+        <div style={{ marginBottom: '16px', color: '#991b1b' }}>
+          {actionError}
+        </div>
+      )}
+
+      {actionMessage && (
+        <div style={{ marginBottom: '16px', color: '#166534' }}>
+          {actionMessage}
+        </div>
+      )}
 
       {showForm && (
         <div style={{

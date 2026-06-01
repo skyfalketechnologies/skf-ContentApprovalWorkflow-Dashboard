@@ -191,13 +191,18 @@ on public.profiles for insert
 to authenticated
 with check (id = auth.uid());
 
-drop policy if exists "Creators and reviewers can read drafts" on public.content_drafts;
-create policy "Creators and reviewers can read drafts"
+drop policy if exists "Creators can select own drafts" on public.content_drafts;
+create policy "Creators can select own drafts"
+on public.content_drafts for select
+to authenticated
+using (creator_id = auth.uid());
+
+drop policy if exists "Reviewers can select all drafts" on public.content_drafts;
+create policy "Reviewers can select all drafts"
 on public.content_drafts for select
 to authenticated
 using (
-  creator_id = auth.uid()
-  or exists (
+  exists (
     select 1 from public.profiles
     where profiles.id = auth.uid()
     and profiles.role = 'reviewer'
@@ -208,23 +213,53 @@ drop policy if exists "Creators can create their own drafts" on public.content_d
 create policy "Creators can create their own drafts"
 on public.content_drafts for insert
 to authenticated
-with check (creator_id = auth.uid());
+with check (
+  creator_id = auth.uid()
+  and exists (
+    select 1 from public.profiles
+    where profiles.id = auth.uid()
+    and profiles.role = 'creator'
+  )
+);
 
-drop policy if exists "Creators and reviewers can update drafts" on public.content_drafts;
-create policy "Creators and reviewers can update drafts"
+drop policy if exists "Creators can update own draft drafts" on public.content_drafts;
+create policy "Creators can update own draft drafts"
 on public.content_drafts for update
 to authenticated
 using (
   creator_id = auth.uid()
-  or exists (
+  and status = 'draft'
+  and exists (
+    select 1 from public.profiles
+    where profiles.id = auth.uid()
+    and profiles.role = 'creator'
+  )
+)
+with check (
+  creator_id = auth.uid()
+  and status in ('draft', 'pending_review')
+  and exists (
+    select 1 from public.profiles
+    where profiles.id = auth.uid()
+    and profiles.role = 'creator'
+  )
+);
+
+drop policy if exists "Reviewers can update draft status" on public.content_drafts;
+create policy "Reviewers can update draft status"
+on public.content_drafts for update
+to authenticated
+using (
+  status = 'pending_review'
+  and exists (
     select 1 from public.profiles
     where profiles.id = auth.uid()
     and profiles.role = 'reviewer'
   )
 )
 with check (
-  creator_id = auth.uid()
-  or exists (
+  status in ('approved', 'rejected')
+  and exists (
     select 1 from public.profiles
     where profiles.id = auth.uid()
     and profiles.role = 'reviewer'
@@ -235,7 +270,15 @@ drop policy if exists "Creators can delete draft drafts" on public.content_draft
 create policy "Creators can delete draft drafts"
 on public.content_drafts for delete
 to authenticated
-using (creator_id = auth.uid() and status = 'draft');
+using (
+  creator_id = auth.uid()
+  and status = 'draft'
+  and exists (
+    select 1 from public.profiles
+    where profiles.id = auth.uid()
+    and profiles.role = 'creator'
+  )
+);
 
 drop policy if exists "Users can read relevant comments" on public.comments;
 create policy "Users can read relevant comments"

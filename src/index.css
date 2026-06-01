@@ -1,45 +1,144 @@
+/* src/index.css */
+
 :root {
   /* Solid, flat color palette - NO gradients or shadows allowed */
-  --bg-main: #f8fafc;        /* Flat light grey background */
-  --bg-card: #ffffff;        /* Solid white cards */
-  --border-color: #cbd5e1;   /* Clear solid borders to separate sections */
+  --bg-main: #f8fafc;        /* Flat light grey main dashboard background */
+  --bg-card: #ffffff;        /* Solid white cards & panels */
+  --bg-sidebar: #ffffff;     /* Solid white sidebar matching the premium layout style */
+  --border-color: #cbd5e1;   /* Crisp, sharp boundaries to replace shadows */
   
-  /* Text */
-  --text-primary: #0f172a;   /* Deep slate for high readability */
-  --text-muted: #475569;     /* Slate grey for descriptions */
+  /* Text Styles */
+  --text-primary: #0f172a;   /* Deep slate for premium readability */
+  --text-muted: #475569;     /* Slate grey for secondary info and timestamps */
 
-  /* Status Colors - Pure solid fragments */
-  --color-pending: #eab308;   /* Solid Amber (No fading) */
-  --color-approved: #22c55e;  /* Solid Green */
-  --color-rejected: #ef4444;  /* Solid Red */
-  --color-brand: #1e40af;     /* Solid Deep Blue for buttons */
+  /* Status Badges - Flat solid tones */
+  --color-draft: #64748b;     /* Solid Charcoal Slate */
+  --color-pending: #eab308;   /* Solid Amber */
+  --color-approved: #22c55e;  /* Solid Vibrant Green */
+  --color-rejected: #ef4444;  /* Solid Vibrant Red */
+  
+  /* Branding / Interactive Actions */
+  --color-brand: #1e40af;     /* Premium Solid Deep Blue */
+  --color-brand-hover: #1d4ed8; 
+  --color-danger: #991b1b;    /* Dark red for delete buttons */
+  --color-danger-hover: #7f1d1d;
 }
 
+/* Base resets */
 body {
   margin: 0;
   background-color: var(--bg-main);
   color: var(--text-primary);
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Professional Flat Card Layout Example */
+/* Global Layout Grid (Sidebar + Main Content area) */
+.app-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+/* Premium Layout Sidebar - Solid, crisp, and spacious */
+.sidebar {
+  background-color: var(--bg-sidebar);
+  border-right: 2px solid var(--border-color);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Main Dashboard Wrapper */
+.main-content {
+  padding: 32px;
+  max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Page Header Structure */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 16px;
+}
+
+/* Flat Card Container - Replaces drop shadows with solid borders */
 .dashboard-card {
   background-color: var(--bg-card);
-  border: 2px solid var(--border-color); /* Use sharp borders instead of shadows */
-  border-radius: 4px; /* Blocky, clean corners */
-  padding: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 6px; /* Blocky, modern utility look */
+  padding: 24px;
+  margin-bottom: 20px;
 }
 
-/* Flat High-Contrast Action Buttons */
+/* Grid Layout for displaying multiple Draft Cards side-by-side */
+.drafts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* Form inputs - Clean flat structure */
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.form-input:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--color-brand);
+}
+
+/* Button UI Components - Zero linear-gradients */
+.btn {
+  padding: 10px 18px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.1s ease;
+}
+
 .btn-primary {
   background-color: var(--color-brand);
   color: white;
-  border: none;
-  padding: 8px 16px;
-  font-weight: bold;
-  cursor: pointer;
 }
 
 .btn-primary:hover {
-  background-color: #1d4ed8; /* Darker flat blue on hover */
+  background-color: var(--color-brand-hover);
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: var(--color-danger-hover);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-main);
 }

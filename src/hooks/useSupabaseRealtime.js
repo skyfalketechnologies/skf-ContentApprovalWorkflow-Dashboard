@@ -4,8 +4,31 @@ import { supabase } from '../lib/supabaseClient'
 export function useSupabaseRealtime(table, filterColumn, filterValue) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
+    let isMounted = true
+
+    if (filterValue === undefined || filterValue === null || filterValue === '') {
+      Promise.resolve().then(() => {
+        if (isMounted) {
+          setData([])
+          setLoading(false)
+        }
+      })
+
+      return () => {
+        isMounted = false
+      }
+    }
+
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        setLoading(true)
+        setError('')
+      }
+    })
+
     // Initial fetch
     fetchData()
 
@@ -26,9 +49,11 @@ export function useSupabaseRealtime(table, filterColumn, filterValue) {
           } else if (payload.eventType === 'DELETE') {
             setData(prev => prev.filter(item => item.id !== payload.old.id))
           } else if (payload.eventType === 'UPDATE') {
-            setData(prev => prev.map(item => 
-              item.id === payload.new.id ? payload.new : item
-            ))
+            setData(prev => {
+              const exists = prev.some(item => item.id === payload.new.id)
+              if (!exists) return [payload.new, ...prev]
+              return prev.map(item => item.id === payload.new.id ? payload.new : item)
+            })
           }
         }
       )
@@ -43,14 +68,18 @@ export function useSupabaseRealtime(table, filterColumn, filterValue) {
       
       if (!error && fetchedData) {
         setData(fetchedData)
+      } else if (error) {
+        console.error(`Error fetching ${table}:`, error)
+        setError(error.message)
       }
       setLoading(false)
     }
 
     return () => {
+      isMounted = false
       subscription.unsubscribe()
     }
   }, [table, filterColumn, filterValue])
 
-  return { data, setData, loading }
+  return { data, setData, loading, error }
 }

@@ -5,30 +5,36 @@ export function DraftForm({ draft, userId, onSave, onCancel }) {
   const [title, setTitle] = useState(draft?.title || '')
   const [body, setBody] = useState(draft?.body || '')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
+
     if (!title.trim() || !body.trim()) {
-      alert('Please fill in both title and body')
+      setError('Please fill in both title and body.')
       return
     }
 
     setSaving(true)
 
     if (draft) {
-      // Update existing draft
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('content_drafts')
-        .update({ title, body, updated_at: new Date() })
+        .update({ title, body })
         .eq('id', draft.id)
+        .eq('creator_id', userId)
+        .eq('status', 'draft')
+        .select('id')
       
       if (error) {
-        alert('Error updating draft: ' + error.message)
+        setError('Error updating draft: ' + error.message)
+      } else if (!data?.length) {
+        setError('Draft was not updated. Only draft items owned by you can be edited.')
       } else {
         onSave()
       }
     } else {
-      // Create new draft
       const { error } = await supabase
         .from('content_drafts')
         .insert({
@@ -39,7 +45,7 @@ export function DraftForm({ draft, userId, onSave, onCancel }) {
         })
       
       if (error) {
-        alert('Error creating draft: ' + error.message)
+        setError('Error creating draft: ' + error.message)
       } else {
         onSave()
       }
@@ -108,6 +114,12 @@ export function DraftForm({ draft, userId, onSave, onCancel }) {
           Cancel
         </button>
       </div>
+
+      {error && (
+        <div style={{ marginTop: '12px', color: '#991b1b', fontSize: '14px' }}>
+          {error}
+        </div>
+      )}
     </form>
   )
 }

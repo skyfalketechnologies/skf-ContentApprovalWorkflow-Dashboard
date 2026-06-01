@@ -9,8 +9,10 @@ export function ReviewerDashboard() {
   const [selectedDraft, setSelectedDraft] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [auditDraft, setAuditDraft] = useState(null)
+  const [actionError, setActionError] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
   
-  const { data: drafts, loading } = useSupabaseRealtime(
+  const { data: drafts, setData: setDrafts, loading, error: draftsError } = useSupabaseRealtime(
     'content_drafts',
     'status',
     'pending_review'
@@ -18,24 +20,38 @@ export function ReviewerDashboard() {
 
   const handleReview = async (draftId, decision, commentText) => {
     if (!commentText.trim()) {
-      alert('Please provide a comment explaining your decision')
+      setActionError('Please provide a comment explaining your decision.')
       return
     }
 
-    const { error: draftError } = await supabase
+    setActionError('')
+    setActionMessage('')
+
+    const { data: updatedDrafts, error: draftError } = await supabase
       .from('content_drafts')
       .update({ 
-        status: decision,
-        updated_at: new Date()
+        status: decision
       })
       .eq('id', draftId)
+      .eq('status', 'pending_review')
+      .select('id, status')
 
     if (draftError) {
-      alert('Error updating draft status: ' + draftError.message)
+      setActionError('Error updating draft status: ' + draftError.message)
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    if (!updatedDrafts?.length) {
+      setActionError('Draft was not reviewed. It may no longer be pending review, or your account does not have reviewer permission.')
+      return
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setActionError(userError?.message || 'Could not identify the signed-in reviewer.')
+      return
+    }
     
     const { error: commentError } = await supabase
       .from('comments')
@@ -46,8 +62,10 @@ export function ReviewerDashboard() {
       })
 
     if (commentError) {
-      alert('Error saving comment: ' + commentError.message)
+      setActionError('Error saving comment: ' + commentError.message)
     } else {
+      setDrafts(currentDrafts => currentDrafts.filter(draft => draft.id !== draftId))
+      setActionMessage(`Draft ${decision}.`)
       setShowReviewModal(false)
       setSelectedDraft(null)
     }
@@ -69,6 +87,24 @@ export function ReviewerDashboard() {
           {drafts.length} draft(s) awaiting your review
         </p>
       </div>
+
+      {draftsError && (
+        <div style={{ marginBottom: '16px', color: '#991b1b' }}>
+          Error loading drafts: {draftsError}
+        </div>
+      )}
+
+      {actionError && (
+        <div style={{ marginBottom: '16px', color: '#991b1b' }}>
+          {actionError}
+        </div>
+      )}
+
+      {actionMessage && (
+        <div style={{ marginBottom: '16px', color: '#166534' }}>
+          {actionMessage}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: '16px' }}>
         {drafts.map(draft => (

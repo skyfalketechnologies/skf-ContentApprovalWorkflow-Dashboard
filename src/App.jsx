@@ -3,11 +3,13 @@ import { supabase } from './lib/supabaseClient'
 import { useAuth } from './hooks/useAuth'
 import { CreatorDashboard } from './components/dashboard/CreatorDashboard'
 import { ReviewerDashboard } from './components/dashboard/ReviewerDashboard'
+import { ProfileSettings } from './components/profile/ProfileSettings'
 import './index.css'
 
 
 
 function LoginForm({ onLogin }) {
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,12 +25,18 @@ function LoginForm({ onLogin }) {
     
     let result
     if (isSignUp) {
+      if (!fullName.trim()) {
+        setAuthError('Please enter your display name.')
+        setLoading(false)
+        return
+      }
+
       result = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: email.split('@')[0],
+            full_name: fullName.trim(),
             role: 'creator' // Default role
           }
         }
@@ -73,6 +81,26 @@ function LoginForm({ onLogin }) {
         </p>
         
         <form onSubmit={handleSubmit}>
+          {isSignUp && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                Display name
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '2px solid #cbd5e1',
+                  borderRadius: '4px'
+                }}
+                required={isSignUp}
+              />
+            </div>
+          )}
+
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
               Email
@@ -167,9 +195,9 @@ function LoginForm({ onLogin }) {
   )
 }
 
-function Dashboard() {
-  const { profile, profileError, signOut } = useAuth()
-  
+function Dashboard({ profile, profileError, signOut, updateProfile }) {
+  const [showProfileSettings, setShowProfileSettings] = useState(false)
+
   if (!profile) {
     return (
       <div style={{ padding: '24px' }}>
@@ -193,35 +221,71 @@ function Dashboard() {
         alignItems: 'center'
       }}>
         <div>
-          <h2 style={{ margin: 0 }}>Welcome, {profile.full_name || 'User'}</h2>
+          <h2 style={{ margin: 0 }}>Welcome, {profile.full_name || profile.email || 'User'}</h2>
           <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '14px' }}>
             Role: {profile.role}
           </p>
         </div>
-        <button onClick={signOut} style={{
-          backgroundColor: '#ef4444',
-          color: 'white',
-          border: 'none',
-          padding: '8px 16px',
-          cursor: 'pointer'
-        }}>
-          Sign Out
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => setShowProfileSettings(true)} className="btn btn-secondary">
+            Settings
+          </button>
+          <button onClick={signOut} style={{
+            backgroundColor: '#ef4444',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            cursor: 'pointer'
+          }}>
+            Sign Out
+          </button>
+        </div>
       </div>
       
-      {profile.role === 'creator' ? <CreatorDashboard /> : <ReviewerDashboard />}
+      {profile.role === 'creator' ? (
+        <CreatorDashboard profile={profile} />
+      ) : (
+        <ReviewerDashboard />
+      )}
+
+      {showProfileSettings && (
+        <ProfileSettings
+          profile={profile}
+          onUpdateProfile={updateProfile}
+          onClose={() => setShowProfileSettings(false)}
+        />
+      )}
     </div>
   )
 }
 
 export default function App() {
-  const { user, loading } = useAuth()
+  const { user, profile, profileError, authError, loading, signOut, updateProfile } = useAuth()
   
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
       Loading...
     </div>
   }
+
+  if (authError) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <h2>Unable to load session</h2>
+        <p>{authError}</p>
+        <button onClick={signOut}>Clear Session</button>
+      </div>
+    )
+  }
   
-  return user ? <Dashboard /> : <LoginForm onLogin={() => {}} />
+  return user ? (
+    <Dashboard
+      profile={profile}
+      profileError={profileError}
+      signOut={signOut}
+      updateProfile={updateProfile}
+    />
+  ) : (
+    <LoginForm onLogin={() => {}} />
+  )
 }
