@@ -6,72 +6,80 @@ export function AuditTrail({ draftId, onClose }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchAuditTrail()
-  }, [draftId])
+    let isMounted = true
 
-  async function fetchAuditTrail() {
-    // Fetch draft details with creator info
-    const { data: draft, error: draftError } = await supabase
-      .from('content_drafts')
-      .select('*, creator:profiles!creator_id(full_name)')
-      .eq('id', draftId)
-      .single()
+    async function fetchAuditTrail() {
+      // Fetch draft details with creator info
+      const { data: draft, error: draftError } = await supabase
+        .from('content_drafts')
+        .select('*, creator:profiles!creator_id(full_name)')
+        .eq('id', draftId)
+        .single()
 
-    if (draftError) {
-      console.error('Error fetching draft:', draftError)
-      setLoading(false)
-      return
-    }
-
-    // Fetch review comments
-    const { data: comments, error: commentsError } = await supabase
-      .from('comments')
-      .select('*, reviewer:profiles!reviewer_id(full_name)')
-      .eq('draft_id', draftId)
-      .order('created_at', { ascending: true })
-
-    if (commentsError) {
-      console.error('Error fetching comments:', commentsError)
-    }
-
-    const timelineEvents = []
-
-    // Event 1: Draft Created
-    if (draft) {
-      timelineEvents.push({
-        event: 'Draft Created',
-        timestamp: draft.created_at,
-        user: draft.creator?.full_name || 'Unknown',
-        details: `Title: "${draft.title}"`
-      })
-
-      // Event 2: Submitted for Review (if status changed from draft)
-      if (draft.status !== 'draft') {
-        timelineEvents.push({
-          event: 'Submitted for Review',
-          timestamp: draft.updated_at,
-          user: draft.creator?.full_name || 'Unknown',
-          details: 'Status changed to: Pending Review'
-        })
+      if (draftError) {
+        console.error('Error fetching draft:', draftError)
+        if (isMounted) setLoading(false)
+        return
       }
 
-      // Event 3: Final Decision (if approved or rejected)
-      if (draft.status === 'approved' || draft.status === 'rejected') {
-        const lastComment = comments?.[comments.length - 1]
-        if (lastComment) {
+      // Fetch review comments
+      const { data: comments, error: commentsError } = await supabase
+        .from('comments')
+        .select('*, reviewer:profiles!reviewer_id(full_name)')
+        .eq('draft_id', draftId)
+        .order('created_at', { ascending: true })
+
+      if (commentsError) {
+        console.error('Error fetching comments:', commentsError)
+      }
+
+      const timelineEvents = []
+
+      // Event 1: Draft Created
+      if (draft) {
+        timelineEvents.push({
+          event: 'Draft Created',
+          timestamp: draft.created_at,
+          user: draft.creator?.full_name || 'Unknown',
+          details: `Title: "${draft.title}"`
+        })
+
+        // Event 2: Submitted for Review (if status changed from draft)
+        if (draft.status !== 'draft') {
           timelineEvents.push({
-            event: `Final Decision: ${draft.status.toUpperCase()}`,
-            timestamp: lastComment.created_at,
-            user: lastComment.reviewer?.full_name || 'Reviewer',
-            details: `Comment: ${lastComment.comment_text}`
+            event: 'Submitted for Review',
+            timestamp: draft.updated_at,
+            user: draft.creator?.full_name || 'Unknown',
+            details: 'Status changed to: Pending Review'
           })
         }
+
+        // Event 3: Final Decision (if approved or rejected)
+        if (draft.status === 'approved' || draft.status === 'rejected') {
+          const lastComment = comments?.[comments.length - 1]
+          if (lastComment) {
+            timelineEvents.push({
+              event: `Final Decision: ${draft.status.toUpperCase()}`,
+              timestamp: lastComment.created_at,
+              user: lastComment.reviewer?.full_name || 'Reviewer',
+              details: `Comment: ${lastComment.comment_text}`
+            })
+          }
+        }
+      }
+
+      if (isMounted) {
+        setTimeline(timelineEvents)
+        setLoading(false)
       }
     }
 
-    setTimeline(timelineEvents)
-    setLoading(false)
-  }
+    fetchAuditTrail()
+
+    return () => {
+      isMounted = false
+    }
+  }, [draftId])
 
   return (
     <div style={{
