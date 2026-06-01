@@ -1,0 +1,45 @@
+:root {
+  /* Solid, flat color palette - NO gradients or shadows allowed */
+  --bg-main: #f8fafc;        /* Flat light grey background */
+  --bg-card: #ffffff;        /* Solid white cards */
+  --border-color: #cbd5e1;   /* Clear solid borders to separate sections */
+  
+  /* Text */
+  --text-primary: #0f172a;   /* Deep slate for high readability */
+  --text-muted: #475569;     /* Slate grey for descriptions */
+
+  /* Status Colors - Pure solid fragments */
+  --color-pending: #eab308;   /* Solid Amber (No fading) */
+  --color-approved: #22c55e;  /* Solid Green */
+  --color-rejected: #ef4444;  /* Solid Red */
+  --color-brand: #1e40af;     /* Solid Deep Blue for buttons */
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: system-ui, sans-serif;
+}
+
+/* Professional Flat Card Layout Example */
+.dashboard-card {
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-color); /* Use sharp borders instead of shadows */
+  border-radius: 4px; /* Blocky, clean corners */
+  padding: 16px;
+}
+
+/* Flat High-Contrast Action Buttons */
+.btn-primary {
+  background-color: var(--color-brand);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8; /* Darker flat blue on hover */
+}
