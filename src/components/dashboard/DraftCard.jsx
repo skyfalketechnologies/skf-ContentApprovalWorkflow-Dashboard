@@ -34,7 +34,14 @@ export function DraftCard({ draft, role, onEdit, onDelete, onSubmit, onReview, o
       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
         {role === 'creator' && draft.status === 'draft' && (
           <>
-            <button onClick={onEdit} className="btn-primary">Edit</button>
+            <button onClick={onEdit} style={{
+              backgroundColor: '#1e40af',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}>Edit</button>
             <button onClick={onDelete} style={{
               backgroundColor: '#ef4444',
               color: 'white',
@@ -55,7 +62,14 @@ export function DraftCard({ draft, role, onEdit, onDelete, onSubmit, onReview, o
         )}
         
         {role === 'reviewer' && draft.status === 'pending_review' && (
-          <button onClick={onReview} className="btn-primary">Review Draft</button>
+          <button onClick={onReview} style={{
+            backgroundColor: '#1e40af',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}>Review Draft</button>
         )}
         
         {role === 'creator' && draft.status !== 'draft' && draft.status !== 'pending_review' && (
