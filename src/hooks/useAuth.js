@@ -4,9 +4,9 @@ import { supabase } from '../lib/supabaseClient'
 export function useAuth() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [profileError, setProfileError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // Move fetchProfile BEFORE useEffect
   async function fetchProfile(userId) {
     const { data, error } = await supabase
       .from('profiles')
@@ -16,6 +16,11 @@ export function useAuth() {
     
     if (!error && data) {
       setProfile(data)
+      setProfileError('')
+    } else {
+      console.error('Error fetching profile:', error)
+      setProfile(null)
+      setProfileError(error?.message || 'Profile row was not found.')
     }
     setLoading(false)
   }
@@ -27,6 +32,8 @@ export function useAuth() {
       if (session?.user) {
         fetchProfile(session.user.id)
       } else {
+        setProfile(null)
+        setProfileError('')
         setLoading(false)
       }
     })
@@ -38,6 +45,7 @@ export function useAuth() {
         await fetchProfile(session.user.id)
       } else {
         setProfile(null)
+        setProfileError('')
         setLoading(false)
       }
     })
@@ -49,5 +57,5 @@ export function useAuth() {
     await supabase.auth.signOut()
   }
 
-  return { user, profile, loading, signOut }
+  return { user, profile, profileError, loading, signOut }
 }

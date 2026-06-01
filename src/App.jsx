@@ -12,10 +12,14 @@ function LoginForm({ onLogin }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setAuthError('')
+    setAuthMessage('')
     
     let result
     if (isSignUp) {
@@ -34,8 +38,12 @@ function LoginForm({ onLogin }) {
     }
     
     if (result.error) {
-      alert(result.error.message)
+      console.error('Supabase auth error:', result.error)
+      setAuthError(result.error.message)
     } else {
+      if (isSignUp && !result.data.session) {
+        setAuthMessage('Account created. Check your email to confirm it before signing in.')
+      }
       onLogin()
     }
     setLoading(false)
@@ -107,12 +115,42 @@ function LoginForm({ onLogin }) {
             disabled={loading}
             style={{ width: '100%', marginBottom: '12px' }}
           >
-            {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+          {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
         </form>
+
+        {authError && (
+          <div style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            border: '1px solid #fecaca',
+            backgroundColor: '#fef2f2',
+            color: '#991b1b',
+            fontSize: '14px'
+          }}>
+            {authError}
+          </div>
+        )}
+
+        {authMessage && (
+          <div style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            border: '1px solid #bbf7d0',
+            backgroundColor: '#f0fdf4',
+            color: '#166534',
+            fontSize: '14px'
+          }}>
+            {authMessage}
+          </div>
+        )}
         
         <button
-          onClick={() => setIsSignUp(!isSignUp)}
+          onClick={() => {
+            setIsSignUp(!isSignUp)
+            setAuthError('')
+            setAuthMessage('')
+          }}
           style={{
             background: 'none',
             border: 'none',
@@ -130,9 +168,19 @@ function LoginForm({ onLogin }) {
 }
 
 function Dashboard() {
-  const { profile, signOut } = useAuth()
+  const { profile, profileError, signOut } = useAuth()
   
-  if (!profile) return <div>Loading...</div>
+  if (!profile) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <h2>Profile unavailable</h2>
+        <p>
+          {profileError || 'Your account is signed in, but no profile row was found.'}
+        </p>
+        <button onClick={signOut}>Sign Out</button>
+      </div>
+    )
+  }
   
   return (
     <div>
