@@ -67,8 +67,9 @@ function LoginForm() {
   return (
     <div className="auth-shell">
       <div className="auth-panel">
+        {/* the actual loginForm labels and input*/}
         <h1 className="auth-title">
-          Content Approval Dashboard
+          {isSignUp ? 'Sign Up' : 'Sign In'}
         </h1>
         <p className="auth-subtitle">
           {isSignUp ? 'Create a new account' : 'Sign in to your account'}
@@ -135,7 +136,7 @@ function LoginForm() {
           <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
             {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
-        </form>
+        </form>         {/*closes the form elements*/}
 
         {authError && (
           <div style={{
