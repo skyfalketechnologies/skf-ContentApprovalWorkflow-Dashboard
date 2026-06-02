@@ -9,12 +9,13 @@ export function StatusBadge({ status }) {
   const config = statusConfig[status] || statusConfig.draft
 
   return (
-    <span style={{
+    <span className="status-badge" style={{
       backgroundColor: config.color,
       color: 'white',
-      padding: '4px 12px',
+      padding: '4px 14px',
       fontSize: '12px',
-      fontWeight: '500',
+      fontWeight: '600',
+      borderRadius: '9999px',
       display: 'inline-block'
     }}>
       {config.label}

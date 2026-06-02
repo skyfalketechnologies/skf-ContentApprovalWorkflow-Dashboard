@@ -82,42 +82,11 @@ export function AuditTrail({ draftId, onClose }) {
   }, [draftId])
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        border: '2px solid #cbd5e1',
-        borderRadius: '4px',
-        width: '600px',
-        maxWidth: '90%',
-        maxHeight: '80vh',
-        overflow: 'auto',
-        padding: '24px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>Audit Trail</h2>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              border: 'none', 
-              background: 'none', 
-              fontSize: '24px', 
-              cursor: 'pointer',
-              padding: '0 8px'
-            }}
-          >
-            ×
-          </button>
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h2>Audit Trail</h2>
+          <button onClick={onClose} className="modal-close">×</button>
         </div>
 
         {loading ? (
@@ -125,27 +94,17 @@ export function AuditTrail({ draftId, onClose }) {
         ) : (
           <div>
             {timeline.length === 0 ? (
-              <p style={{ color: '#475569' }}>No timeline events available.</p>
+              <p className="status-message">No timeline events available.</p>
             ) : (
               timeline.map((event, index) => (
-                <div key={index} style={{
-                  borderLeft: '3px solid #1e40af',
-                  paddingLeft: '16px',
-                  marginBottom: '24px',
-                  paddingBottom: index !== timeline.length - 1 ? '16px' : 0,
-                  borderBottom: index !== timeline.length - 1 ? '1px solid #e5e7eb' : 'none'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                    <strong style={{ fontSize: '16px' }}>{event.event}</strong>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                      {new Date(event.timestamp).toLocaleString()}
-                    </span>
+                <div key={index} className="timeline-item">
+                  <div className="timeline-header">
+                    <strong>{event.event}</strong>
+                    <span>{new Date(event.timestamp).toLocaleString()}</span>
                   </div>
-                  <div style={{ fontSize: '14px', color: '#4b5563', marginBottom: '4px' }}>
-                    By: {event.user}
-                  </div>
+                  <div className="timeline-meta">By: {event.user}</div>
                   {event.details && (
-                    <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+                    <div className="timeline-details">
                       {event.details}
                     </div>
                   )}

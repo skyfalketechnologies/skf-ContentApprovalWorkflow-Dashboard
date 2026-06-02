@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
+// feature: reusable Supabase realtime hook
+// feature: supports optional filtering or full table subscriptions
 export function useSupabaseRealtime(table, filterColumn, filterValue) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -8,71 +10,63 @@ export function useSupabaseRealtime(table, filterColumn, filterValue) {
 
   useEffect(() => {
     let isMounted = true
+    const hasFilter = filterColumn && filterValue !== undefined && filterValue !== null && filterValue !== ''
 
-    if (filterValue === undefined || filterValue === null || filterValue === '') {
-      Promise.resolve().then(() => {
-        if (isMounted) {
-          setData([])
-          setLoading(false)
-        }
-      })
+    const channel = supabase.channel(`${table}_changes`)
 
-      return () => {
-        isMounted = false
-      }
+    const subscriptionConfig = {
+      event: '*',
+      schema: 'public',
+      table: table
     }
 
-    Promise.resolve().then(() => {
+    if (hasFilter) {
+      subscriptionConfig.filter = `${filterColumn}=eq.${filterValue}`
+    }
+
+    // Initial fetch for the table or filtered set
+    fetchData()
+
+    const subscription = channel
+      .on('postgres_changes', subscriptionConfig, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setData(prev => [payload.new, ...prev])
+        } else if (payload.eventType === 'DELETE') {
+          setData(prev => prev.filter(item => item.id !== payload.old.id))
+        } else if (payload.eventType === 'UPDATE') {
+          setData(prev => {
+            const exists = prev.some(item => item.id === payload.new.id)
+            if (!exists) return [payload.new, ...prev]
+            return prev.map(item => item.id === payload.new.id ? payload.new : item)
+          })
+        }
+      })
+      .subscribe()
+
+    async function fetchData() {
       if (isMounted) {
         setLoading(true)
         setError('')
       }
-    })
 
-    // Initial fetch
-    fetchData()
-
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel(`${table}_changes`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: table,
-          filter: `${filterColumn}=eq.${filterValue}`
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setData(prev => [payload.new, ...prev])
-          } else if (payload.eventType === 'DELETE') {
-            setData(prev => prev.filter(item => item.id !== payload.old.id))
-          } else if (payload.eventType === 'UPDATE') {
-            setData(prev => {
-              const exists = prev.some(item => item.id === payload.new.id)
-              if (!exists) return [payload.new, ...prev]
-              return prev.map(item => item.id === payload.new.id ? payload.new : item)
-            })
-          }
-        }
-      )
-      .subscribe()
-
-    async function fetchData() {
-      const { data: fetchedData, error } = await supabase
+      const query = supabase
         .from(table)
         .select('*')
-        .eq(filterColumn, filterValue)
         .order('created_at', { ascending: false })
-      
+
+      const { data: fetchedData, error } = hasFilter
+        ? await query.eq(filterColumn, filterValue)
+        : await query
+
       if (!error && fetchedData) {
         setData(fetchedData)
       } else if (error) {
         console.error(`Error fetching ${table}:`, error)
         setError(error.message)
       }
-      setLoading(false)
+      if (isMounted) {
+        setLoading(false)
+      }
     }
 
     return () => {

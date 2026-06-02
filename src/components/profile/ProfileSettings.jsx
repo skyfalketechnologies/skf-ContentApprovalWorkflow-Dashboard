@@ -29,37 +29,16 @@ export function ProfileSettings({ profile, onUpdateProfile, onClose }) {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.45)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: '#ffffff',
-        border: '2px solid #cbd5e1',
-        borderRadius: '4px',
-        width: '420px',
-        maxWidth: '90%',
-        padding: '24px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0 }}>Profile Settings</h2>
-          <button
-            onClick={onClose}
-            style={{ border: 'none', background: 'none', fontSize: '24px', cursor: 'pointer' }}
-            type="button"
-          >
-            x
-          </button>
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-header">
+          <h2>Profile Settings</h2>
+          <button onClick={onClose} className="modal-close" type="button">×</button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+          <div className="form-field">
+            <label className="form-label">
               Display name
             </label>
             <input
@@ -72,18 +51,18 @@ export function ProfileSettings({ profile, onUpdateProfile, onClose }) {
           </div>
 
           {error && (
-            <div style={{ marginBottom: '12px', color: '#991b1b', fontSize: '14px' }}>
+            <div className="error-message">
               {error}
             </div>
           )}
 
           {message && (
-            <div style={{ marginBottom: '12px', color: '#166534', fontSize: '14px' }}>
+            <div className="success-message">
               {message}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="modal-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : 'Save'}
             </button>

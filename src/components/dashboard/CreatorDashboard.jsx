@@ -1,29 +1,42 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
 import { DraftCard } from './DraftCard'
 import { DraftForm } from '../forms/DraftForm'
 import { AuditTrail } from '../common/AuditTrail'
 
-export function CreatorDashboard({ profile }) {
+// feature: creator dashboard with client-side filter and realtime sync
+export function CreatorDashboard({ profile, filter = 'all' }) {
   const [showForm, setShowForm] = useState(false)
   const [editingDraft, setEditingDraft] = useState(null)
   const [selectedDraftForAudit, setSelectedDraftForAudit] = useState(null)
   const [actionError, setActionError] = useState('')
   const [actionMessage, setActionMessage] = useState('')
-  
+
   const { data: drafts, setData: setDrafts, loading, error: draftsError } = useSupabaseRealtime(
     'content_drafts',
     'creator_id',
     profile.id
   )
 
+  const visibleDrafts = useMemo(() => {
+    return drafts.filter((draft) => filter === 'all' ? true : draft.status === filter)
+  }, [drafts, filter])
+
+  const pageTitle = filter === 'all'
+    ? 'My Content Drafts'
+    : filter === 'pending_review'
+      ? 'Pending Drafts'
+      : filter === 'approved'
+        ? 'Approved Drafts'
+        : 'Rejected Drafts'
+
   const handleDelete = async (draftId) => {
     if (!confirm('Are you sure you want to delete this draft?')) return
 
     setActionError('')
     setActionMessage('')
-    
+
     const { data, error } = await supabase
       .from('content_drafts')
       .delete()
@@ -31,7 +44,7 @@ export function CreatorDashboard({ profile }) {
       .eq('creator_id', profile.id)
       .eq('status', 'draft')
       .select('id')
-    
+
     if (error) {
       setActionError('Error deleting draft: ' + error.message)
       return
@@ -42,7 +55,7 @@ export function CreatorDashboard({ profile }) {
       return
     }
 
-    setDrafts(currentDrafts => currentDrafts.filter(draft => draft.id !== draftId))
+    setDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== draftId))
     setActionMessage('Draft deleted.')
   }
 
@@ -52,14 +65,12 @@ export function CreatorDashboard({ profile }) {
 
     const { data, error } = await supabase
       .from('content_drafts')
-      .update({ 
-        status: 'pending_review'
-      })
+      .update({ status: 'pending_review' })
       .eq('id', draftId)
       .eq('creator_id', profile.id)
       .eq('status', 'draft')
       .select('*')
-    
+
     if (error) {
       setActionError('Error submitting for review: ' + error.message)
       return
@@ -70,7 +81,7 @@ export function CreatorDashboard({ profile }) {
       return
     }
 
-    setDrafts(currentDrafts => currentDrafts.map(draft => draft.id === draftId ? data[0] : draft))
+    setDrafts((currentDrafts) => currentDrafts.map((draft) => draft.id === draftId ? data[0] : draft))
     setActionMessage('Draft submitted for review.')
   }
 
@@ -88,31 +99,27 @@ export function CreatorDashboard({ profile }) {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: '32px',
         borderBottom: '2px solid #e0e0e0',
         paddingBottom: '16px'
       }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '600', margin: 0 }}>
-          My Content Drafts
-        </h1>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: '600', margin: 0 }}>{pageTitle}</h1>
+          <p style={{ margin: '8px 0 0 0', color: '#475569' }}>
+            Showing {visibleDrafts.length} draft(s) for this view.
+          </p>
+        </div>
         <button
           onClick={() => {
             setEditingDraft(null)
             setShowForm(true)
           }}
-          style={{
-            backgroundColor: '#1e40af',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}
+          className="btn btn-primary"
+          style={{ fontSize: '14px' }}
         >
           + New Draft
         </button>
@@ -153,7 +160,7 @@ export function CreatorDashboard({ profile }) {
       )}
 
       <div style={{ display: 'grid', gap: '16px' }}>
-        {drafts.map(draft => (
+        {visibleDrafts.map((draft) => (
           <DraftCard
             key={draft.id}
             draft={draft}
@@ -164,14 +171,15 @@ export function CreatorDashboard({ profile }) {
             onViewAudit={() => setSelectedDraftForAudit(draft)}
           />
         ))}
-        {drafts.length === 0 && (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '48px', 
+
+        {visibleDrafts.length === 0 && (
+          <div style={{
+            textAlign: 'center',
+            padding: '48px',
             backgroundColor: '#f9fafb',
             border: '2px solid #e5e7eb'
           }}>
-            <p>No drafts yet. Create your first draft!</p>
+            <p>No drafts match this filter yet.</p>
           </div>
         )}
       </div>

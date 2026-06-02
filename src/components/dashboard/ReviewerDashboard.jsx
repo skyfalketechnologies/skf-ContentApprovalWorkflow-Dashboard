@@ -1,22 +1,29 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
 import { DraftCard } from './DraftCard'
 import { ReviewComment } from '../forms/ReviewComment'
 import { AuditTrail } from '../common/AuditTrail'
 
-export function ReviewerDashboard() {
+// feature: reviewer dashboard with client-side status filters and realtime updates
+export function ReviewerDashboard({ filter = 'pending_review' }) {
   const [selectedDraft, setSelectedDraft] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [auditDraft, setAuditDraft] = useState(null)
   const [actionError, setActionError] = useState('')
   const [actionMessage, setActionMessage] = useState('')
-  
-  const { data: drafts, setData: setDrafts, loading, error: draftsError } = useSupabaseRealtime(
-    'content_drafts',
-    'status',
-    'pending_review'
-  )
+
+  const { data: drafts, loading, error: draftsError } = useSupabaseRealtime('content_drafts')
+
+  const visibleDrafts = useMemo(() => {
+    return drafts.filter((draft) => draft.status === filter)
+  }, [drafts, filter])
+
+  const pageTitle = filter === 'pending_review'
+    ? 'Pending Reviews'
+    : filter === 'approved'
+      ? 'Approved Reviews'
+      : 'Rejected Reviews'
 
   const handleReview = async (draftId, decision, commentText) => {
     if (!commentText.trim()) {
@@ -29,9 +36,7 @@ export function ReviewerDashboard() {
 
     const { data: updatedDrafts, error: draftError } = await supabase
       .from('content_drafts')
-      .update({ 
-        status: decision
-      })
+      .update({ status: decision })
       .eq('id', draftId)
       .eq('status', 'pending_review')
       .select('id, status')
@@ -52,7 +57,7 @@ export function ReviewerDashboard() {
       setActionError(userError?.message || 'Could not identify the signed-in reviewer.')
       return
     }
-    
+
     const { error: commentError } = await supabase
       .from('comments')
       .insert({
@@ -64,27 +69,24 @@ export function ReviewerDashboard() {
     if (commentError) {
       setActionError('Error saving comment: ' + commentError.message)
     } else {
-      setDrafts(currentDrafts => currentDrafts.filter(draft => draft.id !== draftId))
       setActionMessage(`Draft ${decision}.`)
       setShowReviewModal(false)
       setSelectedDraft(null)
     }
   }
 
-  if (loading) return <div>Loading pending drafts...</div>
+  if (loading) return <div>Loading drafts...</div>
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ 
-        borderBottom: '2px solid #cbd5e1', 
+      <div style={{
+        borderBottom: '2px solid #cbd5e1',
         paddingBottom: '16px',
         marginBottom: '32px'
       }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '600', margin: 0 }}>
-          Pending Reviews
-        </h1>
+        <h1 style={{ fontSize: '28px', fontWeight: '600', margin: 0 }}>{pageTitle}</h1>
         <p style={{ color: '#475569', marginTop: '8px' }}>
-          {drafts.length} draft(s) awaiting your review
+          {visibleDrafts.length} draft(s) in this view
         </p>
       </div>
 
@@ -107,7 +109,7 @@ export function ReviewerDashboard() {
       )}
 
       <div style={{ display: 'grid', gap: '16px' }}>
-        {drafts.map(draft => (
+        {visibleDrafts.map((draft) => (
           <DraftCard
             key={draft.id}
             draft={draft}
@@ -119,14 +121,15 @@ export function ReviewerDashboard() {
             onViewAudit={() => setAuditDraft(draft)}
           />
         ))}
-        {drafts.length === 0 && (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '48px', 
+
+        {visibleDrafts.length === 0 && (
+          <div style={{
+            textAlign: 'center',
+            padding: '48px',
             backgroundColor: '#f9fafb',
             border: '2px solid #e5e7eb'
           }}>
-            <p>No drafts pending review at this time.</p>
+            <p>No drafts match this filter yet.</p>
           </div>
         )}
       </div>
@@ -138,17 +141,12 @@ export function ReviewerDashboard() {
             setShowReviewModal(false)
             setSelectedDraft(null)
           }}
-          onSubmit={(decision, comment) => 
-            handleReview(selectedDraft.id, decision, comment)
-          }
+          onSubmit={(decision, comment) => handleReview(selectedDraft.id, decision, comment)}
         />
       )}
 
       {auditDraft && (
-        <AuditTrail
-          draftId={auditDraft.id}
-          onClose={() => setAuditDraft(null)}
-        />
+        <AuditTrail draftId={auditDraft.id} onClose={() => setAuditDraft(null)} />
       )}
     </div>
   )
