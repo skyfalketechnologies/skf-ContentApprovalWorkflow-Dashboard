@@ -36,7 +36,7 @@ export function DraftCard({ draft, role, onEdit, onDelete, onSubmit, onReview, o
           marginBottom: '16px',
           borderRadius: '8px'
         }}>
-          <strong>✏️ Changes requested:</strong> Please review the feedback below and resubmit when ready.
+          <strong> Changes requested:</strong> Please review the feedback below and resubmit when ready.
         </div>
       )}
       
