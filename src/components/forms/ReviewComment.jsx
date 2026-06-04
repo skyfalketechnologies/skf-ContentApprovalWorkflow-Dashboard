@@ -6,13 +6,14 @@ export function ReviewComment({ draft, onClose, onSubmit }) {
 
   const handleSubmit = () => {
     if (!decision) {
-      alert('Please select Approve or Reject')
+      alert('Please select Approve or Request Changes')
       return
     }
     if (!comment.trim()) {
       alert('Please provide a comment explaining your decision')
       return
     }
+    // Pass either 'approved' or 'changes_requested'
     onSubmit(decision, comment)
   }
 
@@ -46,11 +47,11 @@ export function ReviewComment({ draft, onClose, onSubmit }) {
             <label className="radio-label">
               <input
                 type="radio"
-                value="rejected"
-                checked={decision === 'rejected'}
+                value="changes_requested"
+                checked={decision === 'changes_requested'}
                 onChange={(e) => setDecision(e.target.value)}
               />
-              Reject
+              Request Changes
             </label>
           </div>
         </div>
@@ -62,7 +63,7 @@ export function ReviewComment({ draft, onClose, onSubmit }) {
             onChange={(e) => setComment(e.target.value)}
             rows="4"
             className="form-textarea"
-            placeholder="Explain your decision..."
+            placeholder={decision === 'changes_requested' ? 'Describe what changes are needed...' : 'Explain your approval...'}
             required
           />
         </div>

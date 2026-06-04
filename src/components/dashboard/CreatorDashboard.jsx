@@ -5,7 +5,6 @@ import { DraftCard } from './DraftCard'
 import { DraftForm } from '../forms/DraftForm'
 import { AuditTrail } from '../common/AuditTrail'
 
-// feature: creator dashboard with client-side filter and realtime sync
 export function CreatorDashboard({ profile, filter = 'all' }) {
   const [showForm, setShowForm] = useState(false)
   const [editingDraft, setEditingDraft] = useState(null)
@@ -23,13 +22,12 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     return drafts.filter((draft) => filter === 'all' ? true : draft.status === filter)
   }, [drafts, filter])
 
-  const pageTitle = filter === 'all'
-    ? 'My Content Drafts'
-    : filter === 'pending_review'
-      ? 'Pending Drafts'
-      : filter === 'approved'
-        ? 'Approved Drafts'
-        : 'Rejected Drafts'
+  const pageTitle = {
+    all: 'My Content Drafts',
+    pending_review: 'Pending Drafts',
+    approved: 'Approved Drafts',
+    changes_requested: 'Changes Requested'
+  }[filter] || 'Drafts'
 
   const handleDelete = async (draftId) => {
     if (!confirm('Are you sure you want to delete this draft?')) return
@@ -68,7 +66,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       .update({ status: 'pending_review' })
       .eq('id', draftId)
       .eq('creator_id', profile.id)
-      .eq('status', 'draft')
+      .in('status', ['draft', 'changes_requested'])
       .select('*')
 
     if (error) {
@@ -77,7 +75,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     }
 
     if (!data?.length) {
-      setActionError('Draft was not submitted. It may no longer be in draft status, or your account does not have permission.')
+      setActionError('Draft was not submitted. It may no longer be editable, or your account does not have permission.')
       return
     }
 

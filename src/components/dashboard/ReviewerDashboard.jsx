@@ -5,7 +5,6 @@ import { DraftCard } from './DraftCard'
 import { ReviewComment } from '../forms/ReviewComment'
 import { AuditTrail } from '../common/AuditTrail'
 
-// feature: reviewer dashboard with client-side status filters and realtime updates
 export function ReviewerDashboard({ filter = 'pending_review' }) {
   const [selectedDraft, setSelectedDraft] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -19,11 +18,11 @@ export function ReviewerDashboard({ filter = 'pending_review' }) {
     return drafts.filter((draft) => draft.status === filter)
   }, [drafts, filter])
 
-  const pageTitle = filter === 'pending_review'
-    ? 'Pending Reviews'
-    : filter === 'approved'
-      ? 'Approved Reviews'
-      : 'Rejected Reviews'
+  const pageTitle = {
+    pending_review: 'Pending Reviews',
+    approved: 'Approved Reviews',
+    changes_requested: 'Changes Requested'
+  }[filter] || 'Reviews'
 
   const handleReview = async (draftId, decision, commentText) => {
     if (!commentText.trim()) {
@@ -69,7 +68,8 @@ export function ReviewerDashboard({ filter = 'pending_review' }) {
     if (commentError) {
       setActionError('Error saving comment: ' + commentError.message)
     } else {
-      setActionMessage(`Draft ${decision}.`)
+      const successMessage = decision === 'approved' ? 'Draft approved.' : 'Changes requested. The author has been notified.'
+      setActionMessage(successMessage)
       setShowReviewModal(false)
       setSelectedDraft(null)
     }
