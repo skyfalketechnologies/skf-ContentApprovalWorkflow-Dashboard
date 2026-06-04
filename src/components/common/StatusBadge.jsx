@@ -3,7 +3,8 @@ export function StatusBadge({ status }) {
     draft: { color: '#6b7280', label: 'Draft' },
     pending_review: { color: '#eab308', label: 'Pending Review' },
     approved: { color: '#22c55e', label: 'Approved' },
-    rejected: { color: '#ef4444', label: 'Rejected' }
+    changes_requested: { color: '#f97316', label: 'Changes Requested' },
+    rejected: { color: '#ef4444', label: 'Rejected' } // kept for legacy drafts
   }
 
   const config = statusConfig[status] || statusConfig.draft

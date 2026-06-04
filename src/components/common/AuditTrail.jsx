@@ -9,7 +9,6 @@ export function AuditTrail({ draftId, onClose }) {
     let isMounted = true
 
     async function fetchAuditTrail() {
-      // Fetch draft details with creator info
       const { data: draft, error: draftError } = await supabase
         .from('content_drafts')
         .select('*, creator:profiles!creator_id(full_name)')
@@ -22,64 +21,69 @@ export function AuditTrail({ draftId, onClose }) {
         return
       }
 
-      // Fetch review comments
       const { data: comments, error: commentsError } = await supabase
         .from('comments')
         .select('*, reviewer:profiles!reviewer_id(full_name)')
         .eq('draft_id', draftId)
         .order('created_at', { ascending: true })
 
-      if (commentsError) {
-        console.error('Error fetching comments:', commentsError)
-      }
+      if (commentsError) console.error('Error fetching comments:', commentsError)
 
-      const timelineEvents = []
+      const events = []
 
-      // Event 1: Draft Created
-      if (draft) {
-        timelineEvents.push({
-          event: 'Draft Created',
-          timestamp: draft.created_at,
+      events.push({
+        type: 'create',
+        timestamp: draft.created_at,
+        user: draft.creator?.full_name || 'Unknown',
+        comment: null
+      })
+
+      if (comments && comments.length > 0) {
+        events.push({
+          type: 'submit',
+          timestamp: draft.updated_at,
           user: draft.creator?.full_name || 'Unknown',
-          details: `Title: "${draft.title}"`
+          comment: null
         })
-
-        // Event 2: Submitted for Review (if status changed from draft)
-        if (draft.status !== 'draft') {
-          timelineEvents.push({
-            event: 'Submitted for Review',
-            timestamp: draft.updated_at,
-            user: draft.creator?.full_name || 'Unknown',
-            details: 'Status changed to: Pending Review'
-          })
-        }
-
-        // Event 3: Final Decision (if approved or rejected)
-        if (draft.status === 'approved' || draft.status === 'rejected') {
-          const lastComment = comments?.[comments.length - 1]
-          if (lastComment) {
-            timelineEvents.push({
-              event: `Final Decision: ${draft.status.toUpperCase()}`,
-              timestamp: lastComment.created_at,
-              user: lastComment.reviewer?.full_name || 'Reviewer',
-              details: `Comment: ${lastComment.comment_text}`
-            })
-          }
-        }
       }
+
+      for (const comment of comments) {
+        events.push({
+          type: 'review',
+          timestamp: comment.created_at,
+          user: comment.reviewer?.full_name || 'Reviewer',
+          comment: comment.comment_text,
+        })
+      }
+
+      events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
       if (isMounted) {
-        setTimeline(timelineEvents)
+        setTimeline(events)
         setLoading(false)
       }
     }
 
     fetchAuditTrail()
-
-    return () => {
-      isMounted = false
-    }
+    return () => { isMounted = false }
   }, [draftId])
+
+  const formatEvent = (event) => {
+    switch (event.type) {
+      case 'create':
+        return { label: 'Draft created', detail: null }
+      case 'submit':
+        return { label: 'Submitted for review', detail: null }
+      case 'review': {
+        const truncated = event.comment.length > 100
+          ? event.comment.substring(0, 100) + '...'
+          : event.comment
+        return { label: 'Review', detail: `Feedback: "${truncated}"` }
+      }
+      default:
+        return { label: 'Event', detail: null }
+    }
+  }
 
   return (
     <div className="modal-overlay">
@@ -88,28 +92,26 @@ export function AuditTrail({ draftId, onClose }) {
           <h2>Audit Trail</h2>
           <button onClick={onClose} className="modal-close">×</button>
         </div>
-
         {loading ? (
           <p>Loading timeline...</p>
         ) : (
           <div>
             {timeline.length === 0 ? (
-              <p className="status-message">No timeline events available.</p>
+              <p className="status-message">No events recorded.</p>
             ) : (
-              timeline.map((event, index) => (
-                <div key={index} className="timeline-item">
-                  <div className="timeline-header">
-                    <strong>{event.event}</strong>
-                    <span>{new Date(event.timestamp).toLocaleString()}</span>
-                  </div>
-                  <div className="timeline-meta">By: {event.user}</div>
-                  {event.details && (
-                    <div className="timeline-details">
-                      {event.details}
+              timeline.map((event, idx) => {
+                const { label, detail } = formatEvent(event)
+                return (
+                  <div key={idx} className="timeline-item">
+                    <div className="timeline-header">
+                      <strong>{label}</strong>
+                      <span>{new Date(event.timestamp).toLocaleString()}</span>
                     </div>
-                  )}
-                </div>
-              ))
+                    <div className="timeline-meta">By: {event.user}</div>
+                    {detail && <div className="timeline-details">{detail}</div>}
+                  </div>
+                )
+              })
             )}
           </div>
         )}

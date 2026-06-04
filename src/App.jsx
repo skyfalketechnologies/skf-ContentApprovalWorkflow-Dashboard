@@ -4,14 +4,13 @@ import { supabase } from './lib/supabaseClient'
 import { useAuth } from './hooks/useAuth'
 import { CreatorDashboard } from './components/dashboard/CreatorDashboard'
 import { ReviewerDashboard } from './components/dashboard/ReviewerDashboard'
-import { HomeSummary } from './components/dashboard/HomeSummary'
+import { AllDraftsPage } from './components/dashboard/AllDraftsPage'   // new component – we'll create it
 import { MainLayout } from './components/layout/MainLayout'
 import { ProfileSettings } from './components/profile/ProfileSettings'
 import { PrivateRoute } from './components/auth/PrivateRoute'
 import { RoleBasedRoute } from './components/auth/RoleBasedRoute'
 import './index.css'
 
-// feature: login/signup UI and role selection for Supabase authentication
 function LoginForm() {
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
@@ -36,7 +35,6 @@ function LoginForm() {
         setLoading(false)
         return
       }
-
       result = await supabase.auth.signUp({
         email,
         password,
@@ -67,20 +65,15 @@ function LoginForm() {
   return (
     <div className="auth-shell">
       <div className="auth-panel">
-        <h1 className="auth-title">
-          Content Approval Dashboard
-        </h1>
+        <h1 className="auth-title">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
         <p className="auth-subtitle">
           {isSignUp ? 'Create a new account' : 'Sign in to your account'}
         </p>
-
         <form onSubmit={handleSubmit}>
           {isSignUp && (
             <>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                  Display name
-                </label>
+              <div className="form-field">
+                <label className="form-label">Display name</label>
                 <input
                   type="text"
                   value={fullName}
@@ -89,11 +82,8 @@ function LoginForm() {
                   required
                 />
               </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                  Account type
-                </label>
+              <div className="form-field">
+                <label className="form-label">Account type</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
@@ -105,11 +95,8 @@ function LoginForm() {
               </div>
             </>
           )}
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              Email
-            </label>
+          <div className="form-field">
+            <label className="form-label">Email</label>
             <input
               type="email"
               value={email}
@@ -118,11 +105,8 @@ function LoginForm() {
               required
             />
           </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              Password
-            </label>
+          <div className="form-field">
+            <label className="form-label">Password</label>
             <input
               type="password"
               value={password}
@@ -131,40 +115,16 @@ function LoginForm() {
               required
             />
           </div>
-
           <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
             {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
         </form>
-
         {authError && (
-          <div style={{
-            marginTop: '12px',
-            padding: '12px',
-            border: '1px solid #fecaca',
-            backgroundColor: '#fef2f2',
-            color: '#991b1b',
-            fontSize: '14px',
-            borderRadius: '6px'
-          }}>
-            {authError}
-          </div>
+          <div className="status-message error">{authError}</div>
         )}
-
         {authMessage && (
-          <div style={{
-            marginTop: '12px',
-            padding: '12px',
-            border: '1px solid #bbf7d0',
-            backgroundColor: '#f0fdf4',
-            color: '#166534',
-            fontSize: '14px',
-            borderRadius: '6px'
-          }}>
-            {authMessage}
-          </div>
+          <div className="status-message success">{authMessage}</div>
         )}
-
         <button
           onClick={() => {
             setIsSignUp(!isSignUp)
@@ -181,7 +141,6 @@ function LoginForm() {
   )
 }
 
-// feature: main application router and layout wrapper
 export default function App() {
   const { user, profile, profileError, authError, loading, signOut, updateProfile } = useAuth()
   const [showProfileSettings, setShowProfileSettings] = useState(false)
@@ -241,11 +200,14 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={<HomeSummary profile={profile} />} />
+          {/* NEW: The index route now shows the All Drafts page */}
+          <Route index element={<AllDraftsPage profile={profile} />} />
+
+          {/* Creator routes (kept as they are) */}
           <Route
             path="creator"
             element={
-              <RoleBasedRoute allowedRoles={[ 'creator' ]}>
+              <RoleBasedRoute allowedRoles={['creator']}>
                 <CreatorDashboard profile={profile} filter="all" />
               </RoleBasedRoute>
             }
@@ -253,7 +215,7 @@ export default function App() {
           <Route
             path="creator/pending"
             element={
-              <RoleBasedRoute allowedRoles={[ 'creator' ]}>
+              <RoleBasedRoute allowedRoles={['creator']}>
                 <CreatorDashboard profile={profile} filter="pending_review" />
               </RoleBasedRoute>
             }
@@ -261,7 +223,7 @@ export default function App() {
           <Route
             path="creator/approved"
             element={
-              <RoleBasedRoute allowedRoles={[ 'creator' ]}>
+              <RoleBasedRoute allowedRoles={['creator']}>
                 <CreatorDashboard profile={profile} filter="approved" />
               </RoleBasedRoute>
             }
@@ -269,15 +231,25 @@ export default function App() {
           <Route
             path="creator/rejected"
             element={
-              <RoleBasedRoute allowedRoles={[ 'creator' ]}>
+              <RoleBasedRoute allowedRoles={['creator']}>
                 <CreatorDashboard profile={profile} filter="rejected" />
               </RoleBasedRoute>
             }
           />
           <Route
+            path="creator/changes-requested"
+            element={
+              <RoleBasedRoute allowedRoles={['creator']}>
+                <CreatorDashboard profile={profile} filter="changes_requested" />
+              </RoleBasedRoute>
+            }
+          />
+
+          {/* Reviewer routes */}
+          <Route
             path="reviewer/pending"
             element={
-              <RoleBasedRoute allowedRoles={[ 'reviewer' ]}>
+              <RoleBasedRoute allowedRoles={['reviewer']}>
                 <ReviewerDashboard filter="pending_review" />
               </RoleBasedRoute>
             }
@@ -285,19 +257,20 @@ export default function App() {
           <Route
             path="reviewer/approved"
             element={
-              <RoleBasedRoute allowedRoles={[ 'reviewer' ]}>
+              <RoleBasedRoute allowedRoles={['reviewer']}>
                 <ReviewerDashboard filter="approved" />
               </RoleBasedRoute>
             }
           />
           <Route
-            path="reviewer/rejected"
+            path="reviewer/changes-requested"
             element={
-              <RoleBasedRoute allowedRoles={[ 'reviewer' ]}>
-                <ReviewerDashboard filter="rejected" />
+              <RoleBasedRoute allowedRoles={['reviewer']}>
+                <ReviewerDashboard filter="changes_requested" />
               </RoleBasedRoute>
             }
           />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -24,14 +24,15 @@ export const STATUS_CONFIG = {
     canSubmit: false,
     nextStatus: null
   },
-  rejected: {
-    label: 'Rejected',
-    color: '#ef4444',
-    canEdit: false,
+  changes_requested: {
+    label: 'Changes Requested',
+    color: '#f97316',  // orange
+    canEdit: true,
     canDelete: false,
-    canSubmit: false,
-    nextStatus: null
+    canSubmit: true,
+    nextStatus: 'pending_review'
   }
+
 }
 
 // Helper function to check if draft can be edited
@@ -47,6 +48,11 @@ export function canDeleteDraft(status) {
 // Helper function to check if draft can be submitted
 export function canSubmitDraft(status) {
   return STATUS_CONFIG[status]?.canSubmit || false
+}
+
+// Helper function to check if a reviewer can request changes
+export function canRequestChanges(status) {
+  return status === 'pending_review'
 }
 
 // Helper function to get status label
