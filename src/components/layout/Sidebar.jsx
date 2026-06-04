@@ -85,20 +85,20 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
   const [collapsed, setCollapsed] = useState(false)
   if (!profile) return null
 
-  const creatorLinks = [
-    { to: '/', icon: AllDraftsIcon, label: 'All Drafts', end: true },
-    { to: '/creator/drafts', icon: DraftIcon, label: 'Drafts' },
-    { to: '/creator/pending', icon: ClockIcon, label: 'Pending' },
-    { to: '/creator/approved', icon: CheckCircleIcon, label: 'Approved' },
-    { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
-  ]
+ const creatorLinks = [
+  { to: '/', icon: AllDraftsIcon, label: 'Dashboard', end: true },  // changed from 'All Drafts'
+  { to: '/creator/drafts', icon: DraftIcon, label: 'Drafts' },
+  { to: '/creator/pending', icon: ClockIcon, label: 'Pending' },
+  { to: '/creator/approved', icon: CheckCircleIcon, label: 'Approved' },
+  { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
+]
 
-  const reviewerLinks = [
-    { to: '/', icon: AllDraftsIcon, label: 'All Drafts', end: true },
-    { to: '/reviewer/pending', icon: ClockIcon, label: 'Pending' },
-    { to: '/reviewer/approved', icon: CheckCircleIcon, label: 'Approved' },
-    { to: '/reviewer/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
-  ]
+const reviewerLinks = [
+  { to: '/', icon: AllDraftsIcon, label: 'Dashboard', end: true },  // changed from 'All Drafts'
+  { to: '/reviewer/pending', icon: ClockIcon, label: 'Pending' },
+  { to: '/reviewer/approved', icon: CheckCircleIcon, label: 'Approved' },
+  { to: '/reviewer/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
+]
 
   const links = profile.role === 'creator' ? creatorLinks : reviewerLinks
 
