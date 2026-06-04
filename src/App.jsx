@@ -4,13 +4,19 @@ import { supabase } from './lib/supabaseClient'
 import { useAuth } from './hooks/useAuth'
 import { CreatorDashboard } from './components/dashboard/CreatorDashboard'
 import { ReviewerDashboard } from './components/dashboard/ReviewerDashboard'
-import { AllDraftsPage } from './components/dashboard/AllDraftsPage'   // new component – we'll create it
+import { AllDraftsPage } from './components/dashboard/AllDraftsPage'
+import { AdminDashboard } from './components/admin/AdminDashboard'
 import { MainLayout } from './components/layout/MainLayout'
 import { ProfileSettings } from './components/profile/ProfileSettings'
 import { PrivateRoute } from './components/auth/PrivateRoute'
 import { RoleBasedRoute } from './components/auth/RoleBasedRoute'
 import './index.css'
 
+/**
+ * LoginForm Component
+ * Handles user authentication (sign in and sign up)
+ * Allows new users to choose their role (creator/reviewer)
+ */
 function LoginForm() {
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
@@ -141,10 +147,23 @@ function LoginForm() {
   )
 }
 
+/**
+ * Main App Component
+ * 
+ * Router is wrapped once at the top level to avoid duplicate Router issues.
+ * All routes are nested inside a single Router component.
+ * 
+ * Authentication flow:
+ * 1. Check if user is authenticated (via useAuth hook)
+ * 2. If not authenticated, show login routes
+ * 3. If authenticated, show protected routes wrapped in PrivateRoute
+ * 4. Role-based routes restrict access based on user role
+ */
 export default function App() {
   const { user, profile, profileError, authError, loading, signOut, updateProfile } = useAuth()
   const [showProfileSettings, setShowProfileSettings] = useState(false)
 
+  // Show loading indicator while checking authentication status
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -153,6 +172,7 @@ export default function App() {
     )
   }
 
+  // Show error if authentication fails
   if (authError) {
     return (
       <div style={{ padding: '24px' }}>
@@ -163,6 +183,7 @@ export default function App() {
     )
   }
 
+  // Not authenticated – show login routes only
   if (!user) {
     return (
       <Router>
@@ -174,6 +195,7 @@ export default function App() {
     )
   }
 
+  // User exists but profile is missing (should not happen, but handle gracefully)
   if (!profile) {
     return (
       <div style={{ padding: '24px' }}>
@@ -184,10 +206,14 @@ export default function App() {
     )
   }
 
+  // Authenticated user – show full application with all routes
   return (
     <Router>
       <Routes>
+        {/* Redirect /login to home if already authenticated */}
         <Route path="/login" element={<Navigate to="/" replace />} />
+        
+        {/* Main layout route – all authenticated routes go here */}
         <Route
           path="/"
           element={
@@ -200,10 +226,11 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          {/* NEW: The index route now shows the All Drafts page */}
+          {/* Home page – All Drafts (read-only view with summary cards) */}
           <Route index element={<AllDraftsPage profile={profile} />} />
 
-          {/* Creator routes (kept as they are) */}
+          {/* ==================== CREATOR ROUTES ==================== */}
+          {/* All Drafts (full list with all statuses) */}
           <Route
             path="creator"
             element={
@@ -212,6 +239,18 @@ export default function App() {
               </RoleBasedRoute>
             }
           />
+          
+          {/* Drafts (only status = 'draft' – editable) */}
+          <Route
+            path="creator/drafts"
+            element={
+              <RoleBasedRoute allowedRoles={['creator']}>
+                <CreatorDashboard profile={profile} filter="draft" />
+              </RoleBasedRoute>
+            }
+          />
+          
+          {/* Pending Drafts (only status = 'pending_review') */}
           <Route
             path="creator/pending"
             element={
@@ -220,6 +259,8 @@ export default function App() {
               </RoleBasedRoute>
             }
           />
+          
+          {/* Approved Drafts */}
           <Route
             path="creator/approved"
             element={
@@ -228,14 +269,8 @@ export default function App() {
               </RoleBasedRoute>
             }
           />
-          <Route
-            path="creator/rejected"
-            element={
-              <RoleBasedRoute allowedRoles={['creator']}>
-                <CreatorDashboard profile={profile} filter="rejected" />
-              </RoleBasedRoute>
-            }
-          />
+          
+          {/* Changes Requested Drafts (resubmittable) */}
           <Route
             path="creator/changes-requested"
             element={
@@ -245,7 +280,8 @@ export default function App() {
             }
           />
 
-          {/* Reviewer routes */}
+          {/* ==================== REVIEWER ROUTES ==================== */}
+          {/* Pending Reviews */}
           <Route
             path="reviewer/pending"
             element={
@@ -254,6 +290,8 @@ export default function App() {
               </RoleBasedRoute>
             }
           />
+          
+          {/* Approved Reviews (history view) */}
           <Route
             path="reviewer/approved"
             element={
@@ -262,6 +300,8 @@ export default function App() {
               </RoleBasedRoute>
             }
           />
+          
+          {/* Changes Requested Reviews */}
           <Route
             path="reviewer/changes-requested"
             element={
@@ -271,9 +311,23 @@ export default function App() {
             }
           />
 
+          {/* ==================== ADMIN ROUTES ==================== */}
+          {/* Admin Dashboard – only accessible to users with role = 'admin' */}
+          <Route
+            path="admin"
+            element={
+              <RoleBasedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </RoleBasedRoute>
+            }
+          />
+
+          {/* Catch-all redirect – any unknown route goes to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      
+      {/* Profile Settings Modal – rendered outside the main route outlet */}
       {showProfileSettings && (
         <ProfileSettings
           profile={profile}
