@@ -10,12 +10,16 @@ export function AllDraftsPage({ profile }) {
   const [timeFilter, setTimeFilter] = useState('all')
   const { data: drafts, loading, error } = useSupabaseRealtime('content_drafts')
 
-  // Count drafts by status
+  // Count drafts by status – fixed hasOwnProperty issue
   const counts = useMemo(() => {
     const c = { draft: 0, pending_review: 0, approved: 0, changes_requested: 0, rejected: 0 }
     drafts.forEach(d => {
-      if (c.hasOwnProperty(d.status)) c[d.status]++
-      else c[d.status] = (c[d.status] || 0) + 1
+      if (d.status in c) {
+        c[d.status]++
+      } else {
+        // fallback for any unexpected status
+        c[d.status] = (c[d.status] || 0) + 1
+      }
     })
     return c
   }, [drafts])
@@ -101,7 +105,6 @@ export function AllDraftsPage({ profile }) {
               draft={draft}
               role={profile.role}
               onViewAudit={() => setSelectedDraftForAudit(draft)}
-              // All Drafts page does NOT allow edit/delete/submit – just view audit
               onEdit={() => {}}
               onDelete={() => {}}
               onSubmit={() => {}}
