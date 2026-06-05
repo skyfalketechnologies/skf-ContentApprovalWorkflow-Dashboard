@@ -8,28 +8,41 @@ export function AllDraftsPage({ profile }) {
   const { data: drafts, loading, error } = useSupabaseRealtime('content_drafts')
 
   const counts = useMemo(() => {
-    const c = { draft: 0, pending_review: 0, approved: 0, changes_requested: 0, rejected: 0 }
-    drafts.forEach(d => {
-      if (d.status in c) {
-        c[d.status]++
+    const nextCounts = {
+      draft: 0,
+      pending_review: 0,
+      approved: 0,
+      changes_requested: 0,
+      rejected: 0
+    }
+
+    drafts.forEach((draft) => {
+      if (draft.status in nextCounts) {
+        nextCounts[draft.status] += 1
       } else {
-        c[d.status] = (c[d.status] || 0) + 1
+        nextCounts[draft.status] = (nextCounts[draft.status] || 0) + 1
       }
     })
-    return c
+
+    return nextCounts
   }, [drafts])
 
   const filteredDrafts = useMemo(() => {
-    let filtered = drafts
     const now = new Date()
+
     if (timeFilter === '7days') {
-      const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7))
-      filtered = filtered.filter(d => new Date(d.created_at) >= sevenDaysAgo)
-    } else if (timeFilter === '30days') {
-      const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30))
-      filtered = filtered.filter(d => new Date(d.created_at) >= thirtyDaysAgo)
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(now.getDate() - 7)
+      return drafts.filter((draft) => new Date(draft.created_at) >= sevenDaysAgo)
     }
-    return filtered
+
+    if (timeFilter === '30days') {
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(now.getDate() - 30)
+      return drafts.filter((draft) => new Date(draft.created_at) >= thirtyDaysAgo)
+    }
+
+    return drafts
   }, [drafts, timeFilter])
 
   const hour = new Date().getHours()
@@ -42,6 +55,7 @@ export function AllDraftsPage({ profile }) {
       approved: '/creator/approved',
       changes_requested: '/creator/changes-requested'
     }
+
     const baseRoute = statusRoutes[draft.status] || '/creator'
     navigate(`${baseRoute}?draftId=${draft.id}`)
   }
@@ -54,7 +68,9 @@ export function AllDraftsPage({ profile }) {
       changes_requested: { label: 'Changes Requested', color: '#f97316' },
       rejected: { label: 'Rejected', color: '#ef4444' }
     }
-    const c = config[status] || config.draft
+
+    const currentConfig = config[status] || config.draft
+
     return (
       <span
         style={{
@@ -63,21 +79,29 @@ export function AllDraftsPage({ profile }) {
           borderRadius: '20px',
           fontSize: '12px',
           fontWeight: '600',
-          backgroundColor: c.color,
+          backgroundColor: currentConfig.color,
           color: 'white'
         }}
       >
-        {c.label}
+        {currentConfig.label}
       </span>
     )
   }
 
-  if (loading) return <div className="dashboard-card">Loading dashboard...</div>
-  if (error) return <div className="dashboard-card">Error loading data: {error}</div>
+  const rowStyle = {
+    cursor: 'pointer'
+  }
+
+  if (loading) {
+    return <div className="dashboard-card">Loading dashboard...</div>
+  }
+
+  if (error) {
+    return <div className="dashboard-card">Error loading data: {error}</div>
+  }
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Header */}
       <div
         style={{
           display: 'flex',
@@ -89,12 +113,17 @@ export function AllDraftsPage({ profile }) {
         }}
       >
         <div>
-          <h1 style={{ fontSize: '28px', margin: 0 }}>{greeting}, {profile.full_name}!</h1>
-          <p style={{ margin: '8px 0 0 0', color: '#475569' }}>Overview of all content drafts</p>
+          <h1 style={{ fontSize: '28px', margin: 0 }}>
+            {greeting}, {profile.full_name}!
+          </h1>
+          <p style={{ margin: '8px 0 0 0', color: '#475569' }}>
+            Overview of all content drafts
+          </p>
         </div>
+
         <select
           value={timeFilter}
-          onChange={(e) => setTimeFilter(e.target.value)}
+          onChange={(event) => setTimeFilter(event.target.value)}
           className="form-input"
           style={{ width: 'auto' }}
         >
@@ -104,7 +133,6 @@ export function AllDraftsPage({ profile }) {
         </select>
       </div>
 
-      {/* Summary Cards */}
       <div className="summary-grid" style={{ marginBottom: '32px' }}>
         <div
           className="summary-card"
@@ -114,6 +142,7 @@ export function AllDraftsPage({ profile }) {
           <div className="summary-card-label">Drafts</div>
           <div className="summary-card-count">{counts.draft || 0}</div>
         </div>
+
         <div
           className="summary-card"
           style={{ borderColor: '#eab308', cursor: 'pointer' }}
@@ -122,6 +151,7 @@ export function AllDraftsPage({ profile }) {
           <div className="summary-card-label">Pending</div>
           <div className="summary-card-count">{counts.pending_review || 0}</div>
         </div>
+
         <div
           className="summary-card"
           style={{ borderColor: '#22c55e', cursor: 'pointer' }}
@@ -130,6 +160,7 @@ export function AllDraftsPage({ profile }) {
           <div className="summary-card-label">Approved</div>
           <div className="summary-card-count">{counts.approved || 0}</div>
         </div>
+
         <div
           className="summary-card"
           style={{ borderColor: '#f97316', cursor: 'pointer' }}
@@ -140,7 +171,6 @@ export function AllDraftsPage({ profile }) {
         </div>
       </div>
 
-      {/* Drafts Table */}
       <div
         style={{
           backgroundColor: '#ffffff',
@@ -157,15 +187,24 @@ export function AllDraftsPage({ profile }) {
                 <th style={{ padding: '16px', textAlign: 'left' }}>Preview</th>
                 <th style={{ padding: '16px', textAlign: 'left' }}>Status</th>
                 <th style={{ padding: '16px', textAlign: 'left' }}>Created</th>
-                <th style={{ padding: '16px', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredDrafts.map((draft, index) => (
                 <tr
                   key={draft.id}
+                  onClick={() => handleViewDraft(draft)}
                   style={{
-                    borderBottom: index === filteredDrafts.length - 1 ? 'none' : '1px solid #e2e8f0'
+                    ...rowStyle,
+                    borderBottom:
+                      index === filteredDrafts.length - 1 ? 'none' : '1px solid #e2e8f0'
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.backgroundColor = '#f8fafc'
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.backgroundColor = '#ffffff'
                   }}
                 >
                   <td style={{ padding: '16px', fontWeight: '500' }}>{draft.title}</td>
@@ -176,33 +215,12 @@ export function AllDraftsPage({ profile }) {
                   <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
                     {new Date(draft.created_at).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: '16px', textAlign: 'center' }}>
-                    <button
-                      onClick={() => handleViewDraft(draft)}
-                      style={{
-                        padding: '6px 16px',
-                        backgroundColor: '#1e40af',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '13px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#1d4ed8'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#1e40af'
-                      }}
-                    >
-                      View →
-                    </button>
-                  </td>
                 </tr>
               ))}
+
               {filteredDrafts.length === 0 && (
                 <tr>
-                  <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan="4" style={{ padding: '48px', textAlign: 'center', color: '#6b7280' }}>
                     No drafts found for the selected time period.
                   </td>
                 </tr>

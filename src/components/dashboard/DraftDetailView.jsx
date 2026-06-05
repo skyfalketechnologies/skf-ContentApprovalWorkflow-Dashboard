@@ -1,34 +1,229 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { StatusBadge } from '../common/StatusBadge'
 import { ExportButton } from '../common/ExportButton'
 
-export function DraftDetailView({ draft, onClose, onUpdate, isEditable, currentUserId }) {
-  const [title, setTitle] = useState(draft.title)
-  const [body, setBody] = useState(draft.body)
-  const [isEditing, setIsEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+export function DraftDetailView({
+  draft,
+  onClose,
+  onUpdate,
+  currentUserId,
+  currentUserRole,
+  onEditDraft,
+  onDeleteDraft,
+  onSubmitDraft
+}) {
+  const [assignedReviewers, setAssignedReviewers] = useState([])
+  const [comments, setComments] = useState([])
+  const [loadingMeta, setLoadingMeta] = useState(true)
+  const [metaError, setMetaError] = useState('')
+  const [savingDecision, setSavingDecision] = useState(false)
+  const [decisionError, setDecisionError] = useState('')
+  const [decisionType, setDecisionType] = useState('approved')
+  const [decisionComment, setDecisionComment] = useState('')
 
-  const handleSave = async () => {
-    setSaving(true)
-    setError('')
+  const isCreator = currentUserRole === 'creator'
+  const isReviewer = currentUserRole === 'reviewer'
 
-    const { error: updateError } = await supabase
-      .from('content_drafts')
-      .update({ title, body, updated_at: new Date() })
-      .eq('id', draft.id)
-      .eq('creator_id', currentUserId)
+  useEffect(() => {
+    let mounted = true
 
-    if (updateError) {
-      setError('Error saving: ' + updateError.message)
-      setSaving(false)
+    const loadMeta = async () => {
+      setLoadingMeta(true)
+      setMetaError('')
+
+      const [assignmentsResponse, commentsResponse] = await Promise.all([
+        supabase
+          .from('draft_assignments')
+          .select(`
+            id,
+            reviewer_id,
+            status,
+            profiles!reviewer_id (
+              id,
+              full_name,
+              email
+            )
+          `)
+          .eq('draft_id', draft.id),
+        supabase
+          .from('comments')
+          .select(`
+            id,
+            comment_text,
+            created_at,
+            reviewer_id,
+            profiles!reviewer_id (
+              full_name,
+              email
+            )
+          `)
+          .eq('draft_id', draft.id)
+          .order('created_at', { ascending: true })
+      ])
+
+      if (!mounted) return
+
+      if (assignmentsResponse.error) {
+        setMetaError('Error loading reviewers: ' + assignmentsResponse.error.message)
+        setAssignedReviewers([])
+      } else {
+        setAssignedReviewers(assignmentsResponse.data || [])
+      }
+
+      if (commentsResponse.error) {
+        setMetaError(prev => prev || 'Error loading comments: ' + commentsResponse.error.message)
+        setComments([])
+      } else {
+        setComments(commentsResponse.data || [])
+      }
+
+      setLoadingMeta(false)
+    }
+
+    loadMeta()
+
+    return () => {
+      mounted = false
+    }
+  }, [draft.id])
+
+  const myAssignment = useMemo(() => {
+    return assignedReviewers.find(assignment => assignment.reviewer_id === currentUserId) || null
+  }, [assignedReviewers, currentUserId])
+
+  const reviewerActionAllowed =
+    isReviewer &&
+    draft.status === 'pending_review' &&
+    Boolean(myAssignment) &&
+    myAssignment.status === 'pending'
+
+  const creatorCanEdit = isCreator && (draft.status === 'draft' || draft.status === 'changes_requested')
+  const creatorCanDelete = isCreator && draft.status === 'draft'
+  const creatorCanSubmit = isCreator && (draft.status === 'draft' || draft.status === 'changes_requested')
+
+  const refreshAll = async () => {
+    if (onUpdate) await onUpdate()
+  }
+
+  const handleReviewerDecision = async () => {
+    if (!reviewerActionAllowed) return
+
+    if (!decisionComment.trim()) {
+      setDecisionError('Please enter a comment before submitting your review.')
       return
     }
 
-    setIsEditing(false)
-    setSaving(false)
-    if (onUpdate) onUpdate()
+    setSavingDecision(true)
+    setDecisionError('')
+
+    const nextAssignmentStatus = decisionType === 'approved' ? 'approved' : 'changes_requested'
+    const nextDraftStatus = decisionType === 'approved' ? 'pending_review' : 'changes_requested'
+
+    // 1. Insert comment (only comment_text, no decision column)
+    const { error: commentError } = await supabase
+      .from('comments')
+      .insert({
+        draft_id: draft.id,
+        reviewer_id: currentUserId,
+        comment_text: decisionComment.trim()
+      })
+
+    if (commentError) {
+      setDecisionError('Error saving comment: ' + commentError.message)
+      setSavingDecision(false)
+      return
+    }
+
+    // 2. Update assignment status
+    const { error: assignmentError } = await supabase
+      .from('draft_assignments')
+      .update({ status: nextAssignmentStatus })
+      .eq('draft_id', draft.id)
+      .eq('reviewer_id', currentUserId)
+
+    if (assignmentError) {
+      setDecisionError('Error updating assignment: ' + assignmentError.message)
+      setSavingDecision(false)
+      return
+    }
+
+    // 3. If changes requested, update draft status immediately
+    if (decisionType === 'changes_requested') {
+      const { error: draftError } = await supabase
+        .from('content_drafts')
+        .update({
+          status: nextDraftStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draft.id)
+
+      if (draftError) {
+        setDecisionError('Error updating draft status: ' + draftError.message)
+        setSavingDecision(false)
+        return
+      }
+    }
+
+    // 4. If approved, check if all reviewers have approved
+    if (decisionType === 'approved') {
+      const { data: latestAssignments, error: latestError } = await supabase
+        .from('draft_assignments')
+        .select('status')
+        .eq('draft_id', draft.id)
+
+      if (latestError) {
+        setDecisionError('Error checking approval status: ' + latestError.message)
+        setSavingDecision(false)
+        return
+      }
+
+      const allApproved =
+        latestAssignments?.length > 0 &&
+        latestAssignments.every(a => a.status === 'approved')
+
+      const { error: draftError } = await supabase
+        .from('content_drafts')
+        .update({
+          status: allApproved ? 'approved' : 'pending_review',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', draft.id)
+
+      if (draftError) {
+        setDecisionError('Error updating draft status: ' + draftError.message)
+        setSavingDecision(false)
+        return
+      }
+    }
+
+    setDecisionComment('')
+    await refreshAll()
+    setSavingDecision(false)
+  }
+
+  const getAssignmentBadge = (status) => {
+    const config = {
+      pending: { label: 'Pending', color: '#eab308' },
+      approved: { label: 'Approved', color: '#22c55e' },
+      changes_requested: { label: 'Changes Requested', color: '#f97316' }
+    }
+    const current = config[status] || config.pending
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '4px 10px',
+          borderRadius: '20px',
+          fontSize: '12px',
+          fontWeight: '600',
+          backgroundColor: current.color,
+          color: 'white'
+        }}
+      >
+        {current.label}
+      </span>
+    )
   }
 
   return (
@@ -39,8 +234,15 @@ export function DraftDetailView({ draft, onClose, onUpdate, isEditable, currentU
       padding: '24px',
       marginBottom: '24px'
     }}>
-      {/* Header with back button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      {/* Header with back button and status/export */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        gap: '12px',
+        flexWrap: 'wrap'
+      }}>
         <button
           onClick={onClose}
           style={{
@@ -54,61 +256,194 @@ export function DraftDetailView({ draft, onClose, onUpdate, isEditable, currentU
         >
           ← Back to list
         </button>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <StatusBadge status={draft.status} />
-          {draft.status === 'approved' && (
-            <ExportButton title={draft.title} body={draft.body} />
-          )}
+          {draft.status === 'approved' && <ExportButton title={draft.title} body={draft.body} />}
         </div>
       </div>
 
-      {/* Content */}
-      {isEditing && isEditable ? (
-        <>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="form-input"
-            style={{ fontSize: '24px', fontWeight: '600', marginBottom: '16px' }}
-          />
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows="12"
-            className="form-textarea"
-            style={{ marginBottom: '16px' }}
-          />
-          {error && <div style={{ color: '#ef4444', marginBottom: '16px' }}>{error}</div>}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
-              Cancel
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <h1 style={{ fontSize: '28px', marginBottom: '16px' }}>{draft.title}</h1>
-          <div style={{ color: '#475569', lineHeight: '1.6', marginBottom: '24px', whiteSpace: 'pre-wrap' }}>
-            {draft.body}
-          </div>
-          {isEditable && (
-            <button onClick={() => setIsEditing(true)} className="btn btn-primary">
+      <h1 style={{ fontSize: '28px', marginBottom: '16px' }}>{draft.title}</h1>
+
+      <div style={{
+        color: '#475569',
+        lineHeight: '1.7',
+        marginBottom: '24px',
+        whiteSpace: 'pre-wrap'
+      }}>
+        {draft.body}
+      </div>
+
+      {/* Creator action buttons */}
+      {(creatorCanEdit || creatorCanDelete || creatorCanSubmit) && (
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+          {creatorCanEdit && (
+            <button onClick={() => onEditDraft?.(draft)} className="btn btn-primary">
               Edit Draft
             </button>
           )}
-        </>
+          {creatorCanDelete && (
+            <button
+              onClick={async () => await onDeleteDraft?.(draft.id)}
+              className="btn btn-secondary"
+              style={{ backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444' }}
+            >
+              Delete
+            </button>
+          )}
+          {creatorCanSubmit && (
+            <button
+              onClick={async () => await onSubmitDraft?.(draft.id)}
+              className="btn btn-primary"
+              style={{ backgroundColor: '#22c55e', borderColor: '#22c55e' }}
+            >
+              {draft.status === 'changes_requested' ? 'Resubmit for Review' : 'Submit for Review'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Reviewer decision form */}
+      {reviewerActionAllowed && (
+        <div style={{
+          marginBottom: '24px',
+          padding: '16px',
+          border: '1px solid #cbd5e1',
+          borderRadius: '10px',
+          backgroundColor: '#f8fafc'
+        }}>
+          <h3 style={{ marginTop: 0, marginBottom: '12px' }}>Submit Review</h3>
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="radio"
+                name="decision"
+                value="approved"
+                checked={decisionType === 'approved'}
+                onChange={e => setDecisionType(e.target.value)}
+              />
+              Approve
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="radio"
+                name="decision"
+                value="changes_requested"
+                checked={decisionType === 'changes_requested'}
+                onChange={e => setDecisionType(e.target.value)}
+              />
+              Request Changes
+            </label>
+          </div>
+          <textarea
+            value={decisionComment}
+            onChange={e => setDecisionComment(e.target.value)}
+            rows="5"
+            className="form-textarea"
+            placeholder="Enter your review comment"
+            style={{ marginBottom: '12px' }}
+          />
+          {decisionError && <div style={{ color: '#991b1b', marginBottom: '12px' }}>{decisionError}</div>}
+          <button onClick={handleReviewerDecision} disabled={savingDecision} className="btn btn-primary">
+            {savingDecision ? 'Submitting...' : 'Submit Review'}
+          </button>
+        </div>
       )}
 
       {/* Metadata */}
-      <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', fontSize: '13px', color: '#6b7280' }}>
+      <div style={{
+        marginTop: '24px',
+        paddingTop: '16px',
+        borderTop: '1px solid #e2e8f0',
+        fontSize: '13px',
+        color: '#6b7280'
+      }}>
         <div>Created: {new Date(draft.created_at).toLocaleString()}</div>
         <div>Last updated: {new Date(draft.updated_at).toLocaleString()}</div>
-        {draft.review_by && (
-          <div>Review deadline: {new Date(draft.review_by).toLocaleDateString()}</div>
+        {draft.review_by && <div>Review deadline: {new Date(draft.review_by).toLocaleDateString()}</div>}
+      </div>
+
+      {/* Assigned Reviewers section */}
+      <div style={{
+        marginTop: '24px',
+        padding: '20px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '10px'
+      }}>
+        <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Assigned Reviewers</h2>
+        {loadingMeta ? (
+          <div>Loading reviewers and comments...</div>
+        ) : metaError ? (
+          <div style={{ color: '#991b1b' }}>{metaError}</div>
+        ) : assignedReviewers.length === 0 ? (
+          <div style={{ color: '#6b7280' }}>No reviewers assigned.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {assignedReviewers.map(assignment => (
+              <div key={assignment.id} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600' }}>
+                    {assignment.profiles?.full_name || assignment.profiles?.email || 'Reviewer'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#475569' }}>
+                    {assignment.profiles?.email || 'No email'}
+                  </div>
+                </div>
+                <div>{getAssignmentBadge(assignment.status)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Audit Trail (comments) */}
+      <div style={{
+        marginTop: '24px',
+        padding: '20px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '10px'
+      }}>
+        <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Audit Trail</h2>
+        {loadingMeta ? (
+          <div>Loading audit trail...</div>
+        ) : comments.length === 0 ? (
+          <div style={{ color: '#6b7280' }}>No comments yet.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: '14px' }}>
+            {comments.map(comment => (
+              <div key={comment.id} style={{
+                padding: '14px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                  marginBottom: '8px'
+                }}>
+                  <div style={{ fontWeight: '600' }}>
+                    {comment.profiles?.full_name || comment.profiles?.email || 'Reviewer'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748b' }}>
+                    {new Date(comment.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ color: '#334155', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                  {comment.comment_text}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
