@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
-// Navigation icons (28x28) – white stroke for dark sidebar
-const AllDraftsIcon = () => (
+// Dashboard icon (grid layout)
+const DashboardIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" />
+    <rect x="3" y="14" width="7" height="7" />
   </svg>
 )
 
@@ -85,20 +87,20 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
   const [collapsed, setCollapsed] = useState(false)
   if (!profile) return null
 
- const creatorLinks = [
-  { to: '/', icon: AllDraftsIcon, label: 'Dashboard', end: true },  // changed from 'All Drafts'
-  { to: '/creator/drafts', icon: DraftIcon, label: 'Drafts' },
-  { to: '/creator/pending', icon: ClockIcon, label: 'Pending' },
-  { to: '/creator/approved', icon: CheckCircleIcon, label: 'Approved' },
-  { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
-]
+  const creatorLinks = [
+    { to: '/', icon: DashboardIcon, label: 'Dashboard', end: true },
+    { to: '/creator/drafts', icon: DraftIcon, label: 'Drafts' },
+    { to: '/creator/pending', icon: ClockIcon, label: 'Pending' },
+    { to: '/creator/approved', icon: CheckCircleIcon, label: 'Approved' },
+    { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
+  ]
 
-const reviewerLinks = [
-  { to: '/', icon: AllDraftsIcon, label: 'Dashboard', end: true },  // changed from 'All Drafts'
-  { to: '/reviewer/pending', icon: ClockIcon, label: 'Pending' },
-  { to: '/reviewer/approved', icon: CheckCircleIcon, label: 'Approved' },
-  { to: '/reviewer/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
-]
+  const reviewerLinks = [
+    { to: '/', icon: DashboardIcon, label: 'Dashboard', end: true },
+    { to: '/reviewer/pending', icon: ClockIcon, label: 'Pending' },
+    { to: '/reviewer/approved', icon: CheckCircleIcon, label: 'Approved' },
+    { to: '/reviewer/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
+  ]
 
   const links = profile.role === 'creator' ? creatorLinks : reviewerLinks
 
