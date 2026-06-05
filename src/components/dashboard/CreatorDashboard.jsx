@@ -41,11 +41,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       const freshDraft = drafts.find((draft) => draft.id === manuallySelectedDraft.id)
       return freshDraft || manuallySelectedDraft
     }
-
-    if (!draftIdFromUrl || drafts.length === 0) {
-      return null
-    }
-
+    if (!draftIdFromUrl || drafts.length === 0) return null
     return drafts.find((draft) => draft.id === draftIdFromUrl) || null
   }, [manuallySelectedDraft, draftIdFromUrl, drafts])
 
@@ -58,11 +54,10 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
 
   const closeDetailView = useCallback(() => {
     setManuallySelectedDraft(null)
-
     if (draftIdFromUrl) {
-      const nextParams = new URLSearchParams(searchParams)
-      nextParams.delete('draftId')
-      setSearchParams(nextParams)
+      const next = new URLSearchParams(searchParams)
+      next.delete('draftId')
+      setSearchParams(next)
     }
   }, [draftIdFromUrl, searchParams, setSearchParams])
 
@@ -72,15 +67,11 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       .select('*')
       .eq('creator_id', profile.id)
       .order('created_at', { ascending: false })
-
     if (error) {
       setActionError('Error refreshing drafts: ' + error.message)
       return
     }
-
-    if (data) {
-      setDrafts(data)
-    }
+    if (data) setDrafts(data)
   }, [profile.id, setDrafts])
 
   const handleEdit = useCallback(async (draft) => {
@@ -92,12 +83,11 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       .from('draft_assignments')
       .select('reviewer_id')
       .eq('draft_id', draft.id)
-
     if (error) {
       setActionError('Error loading reviewer assignments: ' + error.message)
       setSelectedReviewers([])
     } else {
-      const ids = assignments?.map((assignment) => assignment.reviewer_id) || []
+      const ids = assignments?.map(a => a.reviewer_id) || []
       setSelectedReviewers([...new Set(ids)])
     }
 
@@ -106,7 +96,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     } else {
       setReviewDeadline('')
     }
-
     setShowForm(true)
   }, [])
 
@@ -115,10 +104,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setActionError('Invalid draft ID')
       return false
     }
-
-    if (!window.confirm('Are you sure you want to delete this draft?')) {
-      return false
-    }
+    if (!window.confirm('Are you sure you want to delete this draft?')) return false
 
     setActionError('')
     setActionMessage('')
@@ -135,15 +121,14 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setActionError('Error deleting draft: ' + error.message)
       return false
     }
-
     if (!data?.length) {
       setActionError('Draft was not deleted.')
       return false
     }
 
-    setDrafts((current) => current.filter((draft) => draft.id !== draftId))
+    setDrafts(current => current.filter(d => d.id !== draftId))
     setActionMessage('Draft deleted successfully.')
-    window.setTimeout(() => setActionMessage(''), 3000)
+    setTimeout(() => setActionMessage(''), 3000)
     closeDetailView()
     return true
   }
@@ -153,7 +138,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setActionError('Invalid draft ID')
       return false
     }
-
     setActionError('')
     setActionMessage('')
 
@@ -166,7 +150,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setActionError('Error checking assignments: ' + assignError.message)
       return false
     }
-
     if (!assignments?.length) {
       setActionError('Cannot submit: No reviewers assigned.')
       return false
@@ -182,7 +165,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setActionError('Error checking deadline: ' + draftError.message)
       return false
     }
-
     if (!draft?.review_by) {
       setActionError('Cannot submit: No review deadline set.')
       return false
@@ -200,17 +182,14 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setActionError('Error submitting for review: ' + error.message)
       return false
     }
-
     if (!data?.length) {
       setActionError('Draft was not submitted.')
       return false
     }
 
-    setDrafts((current) =>
-      current.map((draftItem) => (draftItem.id === draftId ? data[0] : draftItem))
-    )
+    setDrafts(current => current.map(d => (d.id === draftId ? data[0] : d)))
     setActionMessage('Draft submitted for review.')
-    window.setTimeout(() => setActionMessage(''), 3000)
+    setTimeout(() => setActionMessage(''), 3000)
     await loadDrafts()
     return true
   }
@@ -232,12 +211,10 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
         })
         .eq('id', editingDraft.id)
         .eq('creator_id', profile.id)
-
       if (error) {
         setActionError('Error updating draft: ' + error.message)
         return false
       }
-
       draftId = editingDraft.id
     } else {
       const { data, error } = await supabase
@@ -250,29 +227,25 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
         })
         .select()
         .single()
-
       if (error) {
         setActionError('Error creating draft: ' + error.message)
         return false
       }
-
       if (!data?.id) {
         setActionError('Draft created but no ID returned')
         return false
       }
-
       draftId = data.id
     }
 
     const result = await saveDraftAssignments(draftId, selectedReviewers, reviewDeadline)
-
     if (!result.success) {
       setActionError(result.error)
       return false
     }
 
     setActionMessage(isUpdating ? 'Draft updated successfully.' : 'Draft created successfully.')
-    window.setTimeout(() => setActionMessage(''), 3000)
+    setTimeout(() => setActionMessage(''), 3000)
 
     await loadDrafts()
     resetFormState()
@@ -285,13 +258,9 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     setActionMessage('')
   }
 
-  const rowStyle = {
-    cursor: 'pointer'
-  }
+  const rowStyle = { cursor: 'pointer' }
 
-  if (loading) {
-    return <div>Loading...</div>
-  }
+  if (loading) return <div>Loading...</div>
 
   if (selectedDraftForDetail) {
     return (
@@ -312,24 +281,21 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}
-      >
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
         <div>
           <h1 style={{ fontSize: '28px', margin: 0 }}>{pageTitle}</h1>
-          <p style={{ margin: '8px 0 0 0', color: '#475569' }}>
-            {visibleDrafts.length} draft(s)
-          </p>
+          <p style={{ margin: '8px 0 0 0', color: '#475569' }}>{visibleDrafts.length} draft(s)</p>
         </div>
 
-        {(filter === 'draft' || filter === 'changes_requested' || filter === 'all') && !showForm && (
+        {/* ✅ ONLY show "New Draft" button when filter === 'draft' */}
+        {filter === 'draft' && !showForm && (
           <button
             onClick={() => {
               setActionError('')
@@ -346,93 +312,68 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
         )}
       </div>
 
-      {draftsError && (
-        <div style={{ marginBottom: '16px', color: '#991b1b' }}>Error: {draftsError}</div>
-      )}
-      {actionError && (
-        <div style={{ marginBottom: '16px', color: '#991b1b' }}>{actionError}</div>
-      )}
-      {actionMessage && (
-        <div style={{ marginBottom: '16px', color: '#166534' }}>{actionMessage}</div>
-      )}
+      {draftsError && <div style={{ marginBottom: '16px', color: '#991b1b' }}>Error: {draftsError}</div>}
+      {actionError && <div style={{ marginBottom: '16px', color: '#991b1b' }}>{actionError}</div>}
+      {actionMessage && <div style={{ marginBottom: '16px', color: '#166534' }}>{actionMessage}</div>}
 
       {showForm && (
-        <div
-          style={{
-            marginBottom: '32px',
-            padding: '20px',
-            border: '2px solid #cbd5e1',
-            backgroundColor: '#ffffff',
-            borderRadius: '12px'
-          }}
-        >
-          <h2 style={{ marginBottom: '16px' }}>
-            {editingDraft?.id ? 'Edit Draft' : 'Create New Draft'}
-          </h2>
-
+        <div style={{
+          marginBottom: '32px',
+          padding: '20px',
+          border: '2px solid #cbd5e1',
+          backgroundColor: '#ffffff',
+          borderRadius: '12px'
+        }}>
+          <h2 style={{ marginBottom: '16px' }}>{editingDraft?.id ? 'Edit Draft' : 'Create New Draft'}</h2>
           <input
             type="text"
             placeholder="Title"
             value={editingDraft?.title || ''}
-            onChange={(event) =>
-              setEditingDraft((prev) => ({ ...prev, title: event.target.value }))
-            }
+            onChange={e => setEditingDraft(prev => ({ ...prev, title: e.target.value }))}
             className="form-input"
             style={{ marginBottom: '12px' }}
           />
-
           <textarea
             placeholder="Content"
             value={editingDraft?.body || ''}
-            onChange={(event) =>
-              setEditingDraft((prev) => ({ ...prev, body: event.target.value }))
-            }
+            onChange={e => setEditingDraft(prev => ({ ...prev, body: e.target.value }))}
             rows="8"
             className="form-textarea"
             style={{ marginBottom: '12px' }}
           />
-
           <AssignReviewers
             value={selectedReviewers}
             deadlineValue={reviewDeadline}
             onAssignmentsChange={setSelectedReviewers}
             onDeadlineChange={setReviewDeadline}
           />
-
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
             <button
               onClick={async () => {
                 const title = editingDraft?.title || ''
                 const body = editingDraft?.body || ''
-
                 if (!title || !body) {
                   setActionError('Please fill in title and content')
                   return
                 }
-
                 await handleSaveDraft({ title, body })
               }}
               className="btn btn-primary"
             >
               {editingDraft?.id ? 'Update Draft' : 'Create Draft'}
             </button>
-
-            <button onClick={handleCancelForm} className="btn btn-secondary">
-              Cancel
-            </button>
+            <button onClick={handleCancelForm} className="btn btn-secondary">Cancel</button>
           </div>
         </div>
       )}
 
       {!showForm && (
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '2px solid #cbd5e1',
-            borderRadius: '12px',
-            overflow: 'hidden'
-          }}
-        >
+        <div style={{
+          backgroundColor: '#ffffff',
+          border: '2px solid #cbd5e1',
+          borderRadius: '12px',
+          overflow: 'hidden'
+        }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -443,7 +384,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
                   <th style={{ padding: '16px', textAlign: 'left' }}>Created</th>
                 </tr>
               </thead>
-
               <tbody>
                 {visibleDrafts.map((draft, index) => (
                   <tr
@@ -451,46 +391,26 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
                     onClick={() => setManuallySelectedDraft(draft)}
                     style={{
                       ...rowStyle,
-                      borderBottom:
-                        index === visibleDrafts.length - 1 ? 'none' : '1px solid #e2e8f0'
+                      borderBottom: index === visibleDrafts.length - 1 ? 'none' : '1px solid #e2e8f0'
                     }}
-                    onMouseEnter={(event) => {
-                      event.currentTarget.style.backgroundColor = '#f8fafc'
-                    }}
-                    onMouseLeave={(event) => {
-                      event.currentTarget.style.backgroundColor = '#ffffff'
-                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
                   >
                     <td style={{ padding: '16px', fontWeight: '500' }}>{draft.title}</td>
                     <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
                       {draft.body.length > 60 ? draft.body.substring(0, 60) + '...' : draft.body}
                     </td>
                     <td style={{ padding: '16px' }}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          backgroundColor:
-                            draft.status === 'draft'
-                              ? '#6b7280'
-                              : draft.status === 'pending_review'
-                                ? '#eab308'
-                                : draft.status === 'approved'
-                                  ? '#22c55e'
-                                  : '#f97316',
-                          color: 'white'
-                        }}
-                      >
-                        {draft.status === 'draft'
-                          ? 'Draft'
-                          : draft.status === 'pending_review'
-                            ? 'Pending'
-                            : draft.status === 'approved'
-                              ? 'Approved'
-                              : 'Changes Requested'}
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        backgroundColor: draft.status === 'draft' ? '#6b7280' : draft.status === 'pending_review' ? '#eab308' : draft.status === 'approved' ? '#22c55e' : '#f97316',
+                        color: 'white'
+                      }}>
+                        {draft.status === 'draft' ? 'Draft' : draft.status === 'pending_review' ? 'Pending' : draft.status === 'approved' ? 'Approved' : 'Changes Requested'}
                       </span>
                     </td>
                     <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
@@ -498,7 +418,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
                     </td>
                   </tr>
                 ))}
-
                 {visibleDrafts.length === 0 && (
                   <tr>
                     <td colSpan="4" style={{ padding: '48px', textAlign: 'center', color: '#6b7280' }}>
