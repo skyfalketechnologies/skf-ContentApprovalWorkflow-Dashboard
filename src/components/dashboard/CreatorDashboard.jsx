@@ -18,11 +18,16 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
   const [selectedReviewers, setSelectedReviewers] = useState([])
   const [reviewDeadline, setReviewDeadline] = useState('')
 
-  const { data: drafts, setData: setDrafts, loading, error: draftsError } = useSupabaseRealtime(
+  const { data: allDrafts, setData: setDrafts, loading, error: draftsError } = useSupabaseRealtime(
     'content_drafts',
     'creator_id',
     profile.id
   )
+
+  // Filter out archived drafts
+  const drafts = useMemo(() => {
+    return (allDrafts || []).filter(draft => !draft.archived_at)
+  }, [allDrafts])
 
   const visibleDrafts = useMemo(() => {
     return drafts.filter((draft) => (filter === 'all' ? true : draft.status === filter))
@@ -73,6 +78,31 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     }
     if (data) setDrafts(data)
   }, [profile.id, setDrafts])
+
+  // Archive handler for changes_requested drafts
+  const handleArchive = useCallback(async (draftId) => {
+    if (!window.confirm('Archive this draft? It will be hidden from your active list.')) return false
+
+    setActionError('')
+    setActionMessage('')
+
+    const { error } = await supabase
+      .from('content_drafts')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', draftId)
+      .eq('creator_id', profile.id)
+
+    if (error) {
+      setActionError('Error archiving draft: ' + error.message)
+      return false
+    }
+
+    setDrafts(current => current.filter(d => d.id !== draftId))
+    setActionMessage('Draft archived successfully.')
+    setTimeout(() => setActionMessage(''), 3000)
+    closeDetailView()
+    return true
+  }, [profile.id, setDrafts, closeDetailView])
 
   const handleEdit = useCallback(async (draft) => {
     setActionError('')
@@ -273,6 +303,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
           currentUserRole="creator"
           onEditDraft={handleEdit}
           onDeleteDraft={handleDelete}
+          onArchiveDraft={handleArchive}
           onSubmitDraft={handleSubmit}
         />
       </div>
@@ -294,7 +325,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
           <p style={{ margin: '8px 0 0 0', color: '#475569' }}>{visibleDrafts.length} draft(s)</p>
         </div>
 
-        {/* ✅ ONLY show "New Draft" button when filter === 'draft' */}
         {filter === 'draft' && !showForm && (
           <button
             onClick={() => {

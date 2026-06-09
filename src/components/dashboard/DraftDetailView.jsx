@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { StatusBadge } from '../common/StatusBadge'
 import { ExportButton } from '../common/ExportButton'
+import { submitReviewDecision } from '../../utils/reviewActions'
 
 export function DraftDetailView({
   draft,
@@ -11,6 +12,7 @@ export function DraftDetailView({
   currentUserRole,
   onEditDraft,
   onDeleteDraft,
+  onArchiveDraft,
   onSubmitDraft
 }) {
   const [assignedReviewers, setAssignedReviewers] = useState([])
@@ -51,6 +53,7 @@ export function DraftDetailView({
           .select(`
             id,
             comment_text,
+            decision,
             created_at,
             reviewer_id,
             profiles!reviewer_id (
@@ -72,7 +75,7 @@ export function DraftDetailView({
       }
 
       if (commentsResponse.error) {
-        setMetaError(prev => prev || 'Error loading comments: ' + commentsResponse.error.message)
+        setMetaError((prev) => prev || 'Error loading comments: ' + commentsResponse.error.message)
         setComments([])
       } else {
         setComments(commentsResponse.data || [])
@@ -82,14 +85,11 @@ export function DraftDetailView({
     }
 
     loadMeta()
-
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [draft.id])
 
   const myAssignment = useMemo(() => {
-    return assignedReviewers.find(assignment => assignment.reviewer_id === currentUserId) || null
+    return assignedReviewers.find((assignment) => assignment.reviewer_id === currentUserId) || null
   }, [assignedReviewers, currentUserId])
 
   const reviewerActionAllowed =
@@ -100,6 +100,7 @@ export function DraftDetailView({
 
   const creatorCanEdit = isCreator && (draft.status === 'draft' || draft.status === 'changes_requested')
   const creatorCanDelete = isCreator && draft.status === 'draft'
+  const creatorCanArchive = isCreator && draft.status === 'changes_requested'
   const creatorCanSubmit = isCreator && (draft.status === 'draft' || draft.status === 'changes_requested')
 
   const refreshAll = async () => {
@@ -107,9 +108,19 @@ export function DraftDetailView({
   }
 
   const handleReviewerDecision = async () => {
-    if (!reviewerActionAllowed) return
+    console.log('=== handleReviewerDecision called ===')
+    console.log('draft.id:', draft.id)
+    console.log('decisionType:', decisionType)
+    console.log('decisionComment:', decisionComment)
+    console.log('reviewerActionAllowed:', reviewerActionAllowed)
+
+    if (!reviewerActionAllowed) {
+      console.log('reviewerActionAllowed is false, exiting')
+      return
+    }
 
     if (!decisionComment.trim()) {
+      console.log('No comment, exiting')
       setDecisionError('Please enter a comment before submitting your review.')
       return
     }
@@ -117,86 +128,17 @@ export function DraftDetailView({
     setSavingDecision(true)
     setDecisionError('')
 
-    const nextAssignmentStatus = decisionType === 'approved' ? 'approved' : 'changes_requested'
-    const nextDraftStatus = decisionType === 'approved' ? 'pending_review' : 'changes_requested'
+    const result = await submitReviewDecision(draft.id, decisionType, decisionComment)
+    console.log('Result from submitReviewDecision:', result)
 
-    // 1. Insert comment (only comment_text, no decision column)
-    const { error: commentError } = await supabase
-      .from('comments')
-      .insert({
-        draft_id: draft.id,
-        reviewer_id: currentUserId,
-        comment_text: decisionComment.trim()
-      })
-
-    if (commentError) {
-      setDecisionError('Error saving comment: ' + commentError.message)
+    if (!result.success) {
+      console.error('Error from submitReviewDecision:', result.error)
+      setDecisionError('Error submitting review: ' + result.error)
       setSavingDecision(false)
       return
     }
 
-    // 2. Update assignment status
-    const { error: assignmentError } = await supabase
-      .from('draft_assignments')
-      .update({ status: nextAssignmentStatus })
-      .eq('draft_id', draft.id)
-      .eq('reviewer_id', currentUserId)
-
-    if (assignmentError) {
-      setDecisionError('Error updating assignment: ' + assignmentError.message)
-      setSavingDecision(false)
-      return
-    }
-
-    // 3. If changes requested, update draft status immediately
-    if (decisionType === 'changes_requested') {
-      const { error: draftError } = await supabase
-        .from('content_drafts')
-        .update({
-          status: nextDraftStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', draft.id)
-
-      if (draftError) {
-        setDecisionError('Error updating draft status: ' + draftError.message)
-        setSavingDecision(false)
-        return
-      }
-    }
-
-    // 4. If approved, check if all reviewers have approved
-    if (decisionType === 'approved') {
-      const { data: latestAssignments, error: latestError } = await supabase
-        .from('draft_assignments')
-        .select('status')
-        .eq('draft_id', draft.id)
-
-      if (latestError) {
-        setDecisionError('Error checking approval status: ' + latestError.message)
-        setSavingDecision(false)
-        return
-      }
-
-      const allApproved =
-        latestAssignments?.length > 0 &&
-        latestAssignments.every(a => a.status === 'approved')
-
-      const { error: draftError } = await supabase
-        .from('content_drafts')
-        .update({
-          status: allApproved ? 'approved' : 'pending_review',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', draft.id)
-
-      if (draftError) {
-        setDecisionError('Error updating draft status: ' + draftError.message)
-        setSavingDecision(false)
-        return
-      }
-    }
-
+    console.log('Review submitted successfully!')
     setDecisionComment('')
     await refreshAll()
     setSavingDecision(false)
@@ -226,23 +168,51 @@ export function DraftDetailView({
     )
   }
 
+  const getCommentDecisionBadge = (decision) => {
+    if (!decision) return null
+    const config = {
+      approved: { label: 'Approved', color: '#22c55e' },
+      changes_requested: { label: 'Changes Requested', color: '#f97316' }
+    }
+    const current = config[decision]
+    if (!current) return null
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '4px 10px',
+          borderRadius: '20px',
+          fontSize: '12px',
+          fontWeight: '600',
+          backgroundColor: current.color,
+          color: 'white'
+        }}
+      >
+        {current.label}
+      </span>
+    )
+  }
+
   return (
-    <div style={{
-      backgroundColor: '#ffffff',
-      border: '2px solid #cbd5e1',
-      borderRadius: '12px',
-      padding: '24px',
-      marginBottom: '24px'
-    }}>
-      {/* Header with back button and status/export */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px',
-        gap: '12px',
-        flexWrap: 'wrap'
-      }}>
+    <div
+      style={{
+        backgroundColor: '#ffffff',
+        border: '2px solid #cbd5e1',
+        borderRadius: '12px',
+        padding: '24px',
+        marginBottom: '24px'
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}
+      >
         <button
           onClick={onClose}
           style={{
@@ -256,6 +226,7 @@ export function DraftDetailView({
         >
           ← Back to list
         </button>
+
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <StatusBadge status={draft.status} />
           {draft.status === 'approved' && <ExportButton title={draft.title} body={draft.body} />}
@@ -264,17 +235,18 @@ export function DraftDetailView({
 
       <h1 style={{ fontSize: '28px', marginBottom: '16px' }}>{draft.title}</h1>
 
-      <div style={{
-        color: '#475569',
-        lineHeight: '1.7',
-        marginBottom: '24px',
-        whiteSpace: 'pre-wrap'
-      }}>
+      <div
+        style={{
+          color: '#475569',
+          lineHeight: '1.7',
+          marginBottom: '24px',
+          whiteSpace: 'pre-wrap'
+        }}
+      >
         {draft.body}
       </div>
 
-      {/* Creator action buttons */}
-      {(creatorCanEdit || creatorCanDelete || creatorCanSubmit) && (
+      {(creatorCanEdit || creatorCanDelete || creatorCanArchive || creatorCanSubmit) && (
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
           {creatorCanEdit && (
             <button onClick={() => onEditDraft?.(draft)} className="btn btn-primary">
@@ -290,6 +262,15 @@ export function DraftDetailView({
               Delete
             </button>
           )}
+          {creatorCanArchive && (
+            <button
+              onClick={async () => await onArchiveDraft?.(draft.id)}
+              className="btn btn-secondary"
+              style={{ backgroundColor: '#6b7280', color: 'white' }}
+            >
+              Archive
+            </button>
+          )}
           {creatorCanSubmit && (
             <button
               onClick={async () => await onSubmitDraft?.(draft.id)}
@@ -302,15 +283,16 @@ export function DraftDetailView({
         </div>
       )}
 
-      {/* Reviewer decision form */}
       {reviewerActionAllowed && (
-        <div style={{
-          marginBottom: '24px',
-          padding: '16px',
-          border: '1px solid #cbd5e1',
-          borderRadius: '10px',
-          backgroundColor: '#f8fafc'
-        }}>
+        <div
+          style={{
+            marginBottom: '24px',
+            padding: '16px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '10px',
+            backgroundColor: '#f8fafc'
+          }}
+        >
           <h3 style={{ marginTop: 0, marginBottom: '12px' }}>Submit Review</h3>
           <div style={{ display: 'flex', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -319,7 +301,7 @@ export function DraftDetailView({
                 name="decision"
                 value="approved"
                 checked={decisionType === 'approved'}
-                onChange={e => setDecisionType(e.target.value)}
+                onChange={(e) => setDecisionType(e.target.value)}
               />
               Approve
             </label>
@@ -329,14 +311,14 @@ export function DraftDetailView({
                 name="decision"
                 value="changes_requested"
                 checked={decisionType === 'changes_requested'}
-                onChange={e => setDecisionType(e.target.value)}
+                onChange={(e) => setDecisionType(e.target.value)}
               />
               Request Changes
             </label>
           </div>
           <textarea
             value={decisionComment}
-            onChange={e => setDecisionComment(e.target.value)}
+            onChange={(e) => setDecisionComment(e.target.value)}
             rows="5"
             className="form-textarea"
             placeholder="Enter your review comment"
@@ -349,26 +331,28 @@ export function DraftDetailView({
         </div>
       )}
 
-      {/* Metadata */}
-      <div style={{
-        marginTop: '24px',
-        paddingTop: '16px',
-        borderTop: '1px solid #e2e8f0',
-        fontSize: '13px',
-        color: '#6b7280'
-      }}>
+      <div
+        style={{
+          marginTop: '24px',
+          paddingTop: '16px',
+          borderTop: '1px solid #e2e8f0',
+          fontSize: '13px',
+          color: '#6b7280'
+        }}
+      >
         <div>Created: {new Date(draft.created_at).toLocaleString()}</div>
         <div>Last updated: {new Date(draft.updated_at).toLocaleString()}</div>
         {draft.review_by && <div>Review deadline: {new Date(draft.review_by).toLocaleDateString()}</div>}
       </div>
 
-      {/* Assigned Reviewers section */}
-      <div style={{
-        marginTop: '24px',
-        padding: '20px',
-        border: '1px solid #e2e8f0',
-        borderRadius: '10px'
-      }}>
+      <div
+        style={{
+          marginTop: '24px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px'
+        }}
+      >
         <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Assigned Reviewers</h2>
         {loadingMeta ? (
           <div>Loading reviewers and comments...</div>
@@ -378,16 +362,19 @@ export function DraftDetailView({
           <div style={{ color: '#6b7280' }}>No reviewers assigned.</div>
         ) : (
           <div style={{ display: 'grid', gap: '12px' }}>
-            {assignedReviewers.map(assignment => (
-              <div key={assignment.id} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: '12px',
-                flexWrap: 'wrap',
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px'
-              }}>
+            {assignedReviewers.map((assignment) => (
+              <div
+                key={assignment.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                  padding: '12px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}
+              >
                 <div>
                   <div style={{ fontWeight: '600' }}>
                     {assignment.profiles?.full_name || assignment.profiles?.email || 'Reviewer'}
@@ -403,13 +390,14 @@ export function DraftDetailView({
         )}
       </div>
 
-      {/* Audit Trail (comments) */}
-      <div style={{
-        marginTop: '24px',
-        padding: '20px',
-        border: '1px solid #e2e8f0',
-        borderRadius: '10px'
-      }}>
+      <div
+        style={{
+          marginTop: '24px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px'
+        }}
+      >
         <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Audit Trail</h2>
         {loadingMeta ? (
           <div>Loading audit trail...</div>
@@ -417,20 +405,25 @@ export function DraftDetailView({
           <div style={{ color: '#6b7280' }}>No comments yet.</div>
         ) : (
           <div style={{ display: 'grid', gap: '14px' }}>
-            {comments.map(comment => (
-              <div key={comment.id} style={{
-                padding: '14px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                backgroundColor: '#ffffff'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  flexWrap: 'wrap',
-                  marginBottom: '8px'
-                }}>
+            {comments.map((comment) => (
+              <div
+                key={comment.id}
+                style={{
+                  padding: '14px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  backgroundColor: '#ffffff'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    marginBottom: '8px'
+                  }}
+                >
                   <div style={{ fontWeight: '600' }}>
                     {comment.profiles?.full_name || comment.profiles?.email || 'Reviewer'}
                   </div>
@@ -438,6 +431,7 @@ export function DraftDetailView({
                     {new Date(comment.created_at).toLocaleString()}
                   </div>
                 </div>
+                {comment.decision && <div style={{ marginBottom: '8px' }}>{getCommentDecisionBadge(comment.decision)}</div>}
                 <div style={{ color: '#334155', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                   {comment.comment_text}
                 </div>

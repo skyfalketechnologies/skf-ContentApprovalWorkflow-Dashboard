@@ -5,7 +5,12 @@ import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
 export function AllDraftsPage({ profile }) {
   const navigate = useNavigate()
   const [timeFilter, setTimeFilter] = useState('all')
-  const { data: drafts, loading, error } = useSupabaseRealtime('content_drafts')
+  const { data: allDrafts, loading, error } = useSupabaseRealtime('content_drafts')
+
+  // Filter out archived drafts
+  const drafts = useMemo(() => {
+    return (allDrafts || []).filter(draft => !draft.archived_at)
+  }, [allDrafts])
 
   const counts = useMemo(() => {
     const nextCounts = {
@@ -117,8 +122,7 @@ export function AllDraftsPage({ profile }) {
             {greeting}, {profile.full_name}!
           </h1>
           <p style={{ margin: '8px 0 0 0', color: '#475569' }}>
-            Overview of all content drafts
-          </p>
+            Overview of all content drafts          </p>
         </div>
 
         <select
