@@ -83,6 +83,15 @@ const LogOutIcon = () => (
   </svg>
 )
 
+// NEW: Archive Icon
+const ArchiveIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+    <rect x="3" y="3" width="18" height="4" rx="1" />
+    <path d="M5 7v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7" />
+    <line x1="9" y1="11" x2="15" y2="11" />
+  </svg>
+)
+
 export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
   const [collapsed, setCollapsed] = useState(false)
   if (!profile) return null
@@ -92,7 +101,8 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
     { to: '/creator/drafts', icon: DraftIcon, label: 'Drafts' },
     { to: '/creator/pending', icon: ClockIcon, label: 'Pending' },
     { to: '/creator/approved', icon: CheckCircleIcon, label: 'Approved' },
-    { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
+    { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' },
+    { to: '/creator/archived', icon: ArchiveIcon, label: 'Archived' }   // NEW
   ]
 
   const reviewerLinks = [

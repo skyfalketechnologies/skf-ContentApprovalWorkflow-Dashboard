@@ -13,6 +13,7 @@ export function DraftDetailView({
   onEditDraft,
   onDeleteDraft,
   onArchiveDraft,
+  onRestoreDraft,    // NEW
   onSubmitDraft
 }) {
   const [assignedReviewers, setAssignedReviewers] = useState([])
@@ -26,6 +27,8 @@ export function DraftDetailView({
 
   const isCreator = currentUserRole === 'creator'
   const isReviewer = currentUserRole === 'reviewer'
+
+  const isArchived = draft.archived_at !== null
 
   useEffect(() => {
     let mounted = true
@@ -96,31 +99,26 @@ export function DraftDetailView({
     isReviewer &&
     draft.status === 'pending_review' &&
     Boolean(myAssignment) &&
-    myAssignment.status === 'pending'
+    myAssignment.status === 'pending' &&
+    !isArchived
 
-  const creatorCanEdit = isCreator && (draft.status === 'draft' || draft.status === 'changes_requested')
-  const creatorCanDelete = isCreator && draft.status === 'draft'
-  const creatorCanArchive = isCreator && draft.status === 'changes_requested'
-  const creatorCanSubmit = isCreator && (draft.status === 'draft' || draft.status === 'changes_requested')
+  // For non‑archived drafts
+  const creatorCanEdit = isCreator && !isArchived && (draft.status === 'draft' || draft.status === 'changes_requested')
+  const creatorCanDelete = isCreator && !isArchived && draft.status === 'draft'
+  const creatorCanArchive = isCreator && !isArchived && draft.status === 'changes_requested'
+  const creatorCanSubmit = isCreator && !isArchived && (draft.status === 'draft' || draft.status === 'changes_requested')
+
+  // For archived drafts – only restore
+  const creatorCanRestore = isCreator && isArchived
 
   const refreshAll = async () => {
     if (onUpdate) await onUpdate()
   }
 
   const handleReviewerDecision = async () => {
-    console.log('=== handleReviewerDecision called ===')
-    console.log('draft.id:', draft.id)
-    console.log('decisionType:', decisionType)
-    console.log('decisionComment:', decisionComment)
-    console.log('reviewerActionAllowed:', reviewerActionAllowed)
-
-    if (!reviewerActionAllowed) {
-      console.log('reviewerActionAllowed is false, exiting')
-      return
-    }
+    if (!reviewerActionAllowed) return
 
     if (!decisionComment.trim()) {
-      console.log('No comment, exiting')
       setDecisionError('Please enter a comment before submitting your review.')
       return
     }
@@ -129,16 +127,13 @@ export function DraftDetailView({
     setDecisionError('')
 
     const result = await submitReviewDecision(draft.id, decisionType, decisionComment)
-    console.log('Result from submitReviewDecision:', result)
 
     if (!result.success) {
-      console.error('Error from submitReviewDecision:', result.error)
       setDecisionError('Error submitting review: ' + result.error)
       setSavingDecision(false)
       return
     }
 
-    console.log('Review submitted successfully!')
     setDecisionComment('')
     await refreshAll()
     setSavingDecision(false)
@@ -246,42 +241,50 @@ export function DraftDetailView({
         {draft.body}
       </div>
 
-      {(creatorCanEdit || creatorCanDelete || creatorCanArchive || creatorCanSubmit) && (
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
-          {creatorCanEdit && (
-            <button onClick={() => onEditDraft?.(draft)} className="btn btn-primary">
-              Edit Draft
-            </button>
-          )}
-          {creatorCanDelete && (
-            <button
-              onClick={async () => await onDeleteDraft?.(draft.id)}
-              className="btn btn-secondary"
-              style={{ backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444' }}
-            >
-              Delete
-            </button>
-          )}
-          {creatorCanArchive && (
-            <button
-              onClick={async () => await onArchiveDraft?.(draft.id)}
-              className="btn btn-secondary"
-              style={{ backgroundColor: '#6b7280', color: 'white' }}
-            >
-              Archive
-            </button>
-          )}
-          {creatorCanSubmit && (
-            <button
-              onClick={async () => await onSubmitDraft?.(draft.id)}
-              className="btn btn-primary"
-              style={{ backgroundColor: '#22c55e', borderColor: '#22c55e' }}
-            >
-              {draft.status === 'changes_requested' ? 'Resubmit for Review' : 'Submit for Review'}
-            </button>
-          )}
-        </div>
-      )}
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+        {creatorCanEdit && (
+          <button onClick={() => onEditDraft?.(draft)} className="btn btn-primary">
+            Edit Draft
+          </button>
+        )}
+        {creatorCanDelete && (
+          <button
+            onClick={async () => await onDeleteDraft?.(draft.id)}
+            className="btn btn-secondary"
+            style={{ backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444' }}
+          >
+            Delete
+          </button>
+        )}
+        {creatorCanArchive && (
+          <button
+            onClick={async () => await onArchiveDraft?.(draft.id)}
+            className="btn btn-secondary"
+            style={{ backgroundColor: '#6b7280', color: 'white' }}
+          >
+            Archive
+          </button>
+        )}
+        {creatorCanRestore && (
+          <button
+            onClick={async () => await onRestoreDraft?.(draft.id)}
+            className="btn btn-primary"
+            style={{ backgroundColor: '#22c55e' }}
+          >
+            Restore Draft
+          </button>
+        )}
+        {creatorCanSubmit && (
+          <button
+            onClick={async () => await onSubmitDraft?.(draft.id)}
+            className="btn btn-primary"
+            style={{ backgroundColor: '#22c55e', borderColor: '#22c55e' }}
+          >
+            {draft.status === 'changes_requested' ? 'Resubmit for Review' : 'Submit for Review'}
+          </button>
+        )}
+      </div>
 
       {reviewerActionAllowed && (
         <div

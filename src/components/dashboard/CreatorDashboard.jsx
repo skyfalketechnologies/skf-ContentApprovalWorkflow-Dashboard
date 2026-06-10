@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
@@ -24,12 +24,21 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     profile.id
   )
 
-  // Filter out archived drafts
-  const drafts = useMemo(() => {
+  // Filter out archived drafts only for non-archived views
+  const activeDrafts = useMemo(() => {
     return (allDrafts || []).filter(draft => !draft.archived_at)
   }, [allDrafts])
 
+  const archivedDrafts = useMemo(() => {
+    return (allDrafts || []).filter(draft => draft.archived_at !== null)
+  }, [allDrafts])
+
+  const drafts = filter === 'archived' ? archivedDrafts : activeDrafts
+
   const visibleDrafts = useMemo(() => {
+    if (filter === 'archived') {
+      return drafts
+    }
     return drafts.filter((draft) => (filter === 'all' ? true : draft.status === filter))
   }, [drafts, filter])
 
@@ -38,7 +47,8 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     draft: 'Drafts',
     pending_review: 'Pending Reviews',
     approved: 'Approved Content',
-    changes_requested: 'Changes Requested'
+    changes_requested: 'Changes Requested',
+    archived: 'Archived Drafts'
   }[filter] || 'Drafts'
 
   const selectedDraftForDetail = useMemo(() => {
@@ -62,9 +72,16 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     if (draftIdFromUrl) {
       const next = new URLSearchParams(searchParams)
       next.delete('draftId')
-      setSearchParams(next)
+      setSearchParams(next, { replace: true })
     }
   }, [draftIdFromUrl, searchParams, setSearchParams])
+
+  // When filter changes (sidebar navigation), close the detail view
+  useEffect(() => {
+    queueMicrotask(() => {
+      closeDetailView()
+    })
+  }, [filter, closeDetailView])
 
   const loadDrafts = useCallback(async () => {
     const { data, error } = await supabase
@@ -79,7 +96,6 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     if (data) setDrafts(data)
   }, [profile.id, setDrafts])
 
-  // Archive handler for changes_requested drafts
   const handleArchive = useCallback(async (draftId) => {
     if (!window.confirm('Archive this draft? It will be hidden from your active list.')) return false
 
@@ -104,7 +120,35 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
     return true
   }, [profile.id, setDrafts, closeDetailView])
 
+  const handleRestore = useCallback(async (draftId) => {
+    if (!window.confirm('Restore this draft? It will appear back in Changes Requested.')) return false
+
+    setActionError('')
+    setActionMessage('')
+
+    const { error } = await supabase
+      .from('content_drafts')
+      .update({ archived_at: null, status: 'changes_requested', updated_at: new Date().toISOString() })
+      .eq('id', draftId)
+      .eq('creator_id', profile.id)
+
+    if (error) {
+      setActionError('Error restoring draft: ' + error.message)
+      return false
+    }
+
+    setDrafts(current => current.filter(d => d.id !== draftId))
+    setActionMessage('Draft restored successfully.')
+    setTimeout(() => setActionMessage(''), 3000)
+    closeDetailView()
+    return true
+  }, [profile.id, setDrafts, closeDetailView])
+
+  // MODIFIED: handleEdit now closes the detail view first
   const handleEdit = useCallback(async (draft) => {
+    // Close the detail view if it's open
+    closeDetailView()
+
     setActionError('')
     setActionMessage('')
     setEditingDraft(draft)
@@ -127,7 +171,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
       setReviewDeadline('')
     }
     setShowForm(true)
-  }, [])
+  }, [closeDetailView])
 
   const handleDelete = async (draftId) => {
     if (!draftId) {
@@ -304,6 +348,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
           onEditDraft={handleEdit}
           onDeleteDraft={handleDelete}
           onArchiveDraft={handleArchive}
+          onRestoreDraft={handleRestore}
           onSubmitDraft={handleSubmit}
         />
       </div>
@@ -325,7 +370,7 @@ export function CreatorDashboard({ profile, filter = 'all' }) {
           <p style={{ margin: '8px 0 0 0', color: '#475569' }}>{visibleDrafts.length} draft(s)</p>
         </div>
 
-        {filter === 'draft' && !showForm && (
+        {filter !== 'archived' && filter === 'draft' && !showForm && (
           <button
             onClick={() => {
               setActionError('')
