@@ -83,7 +83,7 @@ const LogOutIcon = () => (
   </svg>
 )
 
-// NEW: Archive Icon
+// Archive Icon
 const ArchiveIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
     <rect x="3" y="3" width="18" height="4" rx="1" />
@@ -102,11 +102,11 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
     { to: '/creator/pending', icon: ClockIcon, label: 'Pending' },
     { to: '/creator/approved', icon: CheckCircleIcon, label: 'Approved' },
     { to: '/creator/changes-requested', icon: XCircleIcon, label: 'Changes Requested' },
-    { to: '/creator/archived', icon: ArchiveIcon, label: 'Archived' }   // NEW
+    { to: '/creator/archived', icon: ArchiveIcon, label: 'Archived' }
   ]
 
   const reviewerLinks = [
-    { to: '/', icon: DashboardIcon, label: 'Dashboard', end: true },
+    // Dashboard link removed – reviewers start at /reviewer (home)
     { to: '/reviewer/pending', icon: ClockIcon, label: 'Pending' },
     { to: '/reviewer/approved', icon: CheckCircleIcon, label: 'Approved' },
     { to: '/reviewer/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }

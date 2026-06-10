@@ -4,6 +4,7 @@ import { supabase } from './lib/supabaseClient'
 import { useAuth } from './hooks/useAuth'
 import { CreatorDashboard } from './components/dashboard/CreatorDashboard'
 import { ReviewerDashboard } from './components/dashboard/ReviewerDashboard'
+import { ReviewerHome } from './components/dashboard/ReviewerHome'
 import { AllDraftsPage } from './components/dashboard/AllDraftsPage'
 import { AdminDashboard } from './components/admin/AdminDashboard'
 import { MainLayout } from './components/layout/MainLayout'
@@ -201,7 +202,17 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={<AllDraftsPage profile={profile} />} />
+          {/* Root route: creators see AllDraftsPage, reviewers go to /reviewer */}
+          <Route
+            index
+            element={
+              profile.role === 'reviewer' ? (
+                <Navigate to="/reviewer" replace />
+              ) : (
+                <AllDraftsPage profile={profile} />
+              )
+            }
+          />
 
           {/* CREATOR ROUTES */}
           <Route
@@ -244,7 +255,6 @@ export default function App() {
               </RoleBasedRoute>
             }
           />
-          {/* NEW: Archived Drafts */}
           <Route
             path="creator/archived"
             element={
@@ -255,6 +265,14 @@ export default function App() {
           />
 
           {/* REVIEWER ROUTES */}
+          <Route
+            path="reviewer"
+            element={
+              <RoleBasedRoute allowedRoles={['reviewer']}>
+                <ReviewerHome />
+              </RoleBasedRoute>
+            }
+          />
           <Route
             path="reviewer/pending"
             element={
