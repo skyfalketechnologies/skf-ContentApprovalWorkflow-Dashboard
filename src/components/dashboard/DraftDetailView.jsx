@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
-import { StatusBadge } from '../common/StatusBadge'
-import { ExportButton } from '../common/ExportButton'
-import { submitReviewDecision } from '../../utils/reviewActions'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { supabase } from '../../lib/supabaseClient.js'
+import { StatusBadge } from '../common/StatusBadge.jsx'
+import { ExportButton } from '../common/ExportButton.jsx'
+import { submitReviewDecision } from '../../utils/reviewActions.js'
 
 export function DraftDetailView({
   draft,
@@ -13,7 +13,7 @@ export function DraftDetailView({
   onEditDraft,
   onDeleteDraft,
   onArchiveDraft,
-  onRestoreDraft,    // NEW
+  onRestoreDraft,
   onSubmitDraft
 }) {
   const [assignedReviewers, setAssignedReviewers] = useState([])
@@ -24,12 +24,14 @@ export function DraftDetailView({
   const [decisionError, setDecisionError] = useState('')
   const [decisionType, setDecisionType] = useState('approved')
   const [decisionComment, setDecisionComment] = useState('')
+  const [myAssignment, setMyAssignment] = useState(null) // 👈 new state for current reviewer
 
   const isCreator = currentUserRole === 'creator'
   const isReviewer = currentUserRole === 'reviewer'
 
-  const isArchived = draft.archived_at !== null
+  const isArchived = draft.archived_at !== null && draft.archived_at !== undefined && draft.archived_at !== ''
 
+  // Load all assignments & comments (for display)
   useEffect(() => {
     let mounted = true
 
@@ -91,24 +93,37 @@ export function DraftDetailView({
     return () => { mounted = false }
   }, [draft.id])
 
-  const myAssignment = useMemo(() => {
-    return assignedReviewers.find((assignment) => assignment.reviewer_id === currentUserId) || null
-  }, [assignedReviewers, currentUserId])
+  // 👇 Direct fetch for current reviewer's assignment (replaces the old myAssignment memo)
+  const loadMyAssignment = useCallback(async () => {
+    if (!draft?.id || !currentUserId) return
+    const { data, error } = await supabase
+      .from('draft_assignments')
+      .select('id, status')
+      .eq('draft_id', draft.id)
+      .eq('reviewer_id', currentUserId)
+      .maybeSingle()
+    if (error) {
+      console.error('Failed to load my assignment:', error)
+      return
+    }
+    setMyAssignment(data || null)
+  }, [draft?.id, currentUserId])
 
+  useEffect(() => {
+    loadMyAssignment()
+  }, [loadMyAssignment])
+
+  // Reviewer action allowed – now uses the direct myAssignment state
   const reviewerActionAllowed =
     isReviewer &&
     draft.status === 'pending_review' &&
     Boolean(myAssignment) &&
-    myAssignment.status === 'pending' &&
-    !isArchived
+    myAssignment.status === 'pending'
 
-  // For non‑archived drafts
   const creatorCanEdit = isCreator && !isArchived && (draft.status === 'draft' || draft.status === 'changes_requested')
   const creatorCanDelete = isCreator && !isArchived && draft.status === 'draft'
   const creatorCanArchive = isCreator && !isArchived && draft.status === 'changes_requested'
   const creatorCanSubmit = isCreator && !isArchived && (draft.status === 'draft' || draft.status === 'changes_requested')
-
-  // For archived drafts – only restore
   const creatorCanRestore = isCreator && isArchived
 
   const refreshAll = async () => {
@@ -135,7 +150,7 @@ export function DraftDetailView({
     }
 
     setDecisionComment('')
-    await refreshAll()
+    await Promise.all([refreshAll(), loadMyAssignment()]) // 👈 refresh both
     setSavingDecision(false)
   }
 
@@ -224,7 +239,9 @@ export function DraftDetailView({
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <StatusBadge status={draft.status} />
-          {draft.status === 'approved' && <ExportButton title={draft.title} body={draft.body} />}
+          {draft.status === 'approved' && currentUserRole !== 'reviewer' && (
+            <ExportButton title={draft.title} body={draft.body} />
+          )}
         </div>
       </div>
 
@@ -241,7 +258,6 @@ export function DraftDetailView({
         {draft.body}
       </div>
 
-      {/* Action Buttons */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
         {creatorCanEdit && (
           <button onClick={() => onEditDraft?.(draft)} className="btn btn-primary">
@@ -358,7 +374,7 @@ export function DraftDetailView({
       >
         <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Assigned Reviewers</h2>
         {loadingMeta ? (
-          <div>Loading reviewers and comments...</div>
+          <div>Loading reviewers...</div>
         ) : metaError ? (
           <div style={{ color: '#991b1b' }}>{metaError}</div>
         ) : assignedReviewers.length === 0 ? (
@@ -401,9 +417,9 @@ export function DraftDetailView({
           borderRadius: '10px'
         }}
       >
-        <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Audit Trail</h2>
+        <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px' }}>Comments</h2>
         {loadingMeta ? (
-          <div>Loading audit trail...</div>
+          <div>Loading comments...</div>
         ) : comments.length === 0 ? (
           <div style={{ color: '#6b7280' }}>No comments yet.</div>
         ) : (
@@ -430,7 +446,7 @@ export function DraftDetailView({
                   <div style={{ fontWeight: '600' }}>
                     {comment.profiles?.full_name || comment.profiles?.email || 'Reviewer'}
                   </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>
+                  <div style={{ fontSize: '15px', color: '#475569' }}>
                     {new Date(comment.created_at).toLocaleString()}
                   </div>
                 </div>

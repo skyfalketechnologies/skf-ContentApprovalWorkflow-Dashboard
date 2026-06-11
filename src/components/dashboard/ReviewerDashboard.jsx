@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseClient'
-import { DraftDetailView } from './DraftDetailView'
+import { supabase } from '../../lib/supabaseClient.js'
+import { DraftDetailView } from './DraftDetailView.jsx'
 
 export function ReviewerDashboard({ filter = 'pending_review' }) {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -22,7 +22,7 @@ export function ReviewerDashboard({ filter = 'pending_review' }) {
         id,
         status,
         draft_id,
-        content_drafts (
+        content_drafts!inner (
           id,
           title,
           body,
@@ -31,10 +31,12 @@ export function ReviewerDashboard({ filter = 'pending_review' }) {
           updated_at,
           review_by,
           creator_id,
+          archived_at,
           profiles!creator_id (full_name, email)
         )
       `)
       .eq('reviewer_id', reviewerId)
+      .is('content_drafts.archived_at', null)
 
     if (error) {
       console.error('Error loading assignments:', error)
@@ -69,6 +71,17 @@ export function ReviewerDashboard({ filter = 'pending_review' }) {
 
     getCurrentUser()
   }, [fetchMyAssignments])
+
+  // Clear selected draft when filter changes (sidebar navigation)
+  useEffect(() => {
+    setManuallySelectedDraft(null)
+    if (draftIdFromUrl) {
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.delete('draftId')
+      setSearchParams(nextParams)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter])
 
   const visibleDrafts = useMemo(() => {
     return myAssignments.filter((draft) => draft.status === filter)

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
+// Helper to get tomorrow's date in YYYY-MM-DD format
+function getTomorrowDate() {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return tomorrow.toISOString().split('T')[0]
+}
+
 export function AssignReviewers({
   value = [],
   deadlineValue = '',
@@ -59,6 +66,7 @@ export function AssignReviewers({
           id="review-deadline"
           type="date"
           value={deadlineValue || ''}
+          min={getTomorrowDate()}   // ✅ Only allow dates from tomorrow onward
           onChange={(e) => onDeadlineChange(e.target.value)}
           className="form-input"
         />
