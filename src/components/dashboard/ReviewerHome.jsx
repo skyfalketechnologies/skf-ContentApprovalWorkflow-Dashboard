@@ -1,85 +1,61 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseClient'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
 
 export function ReviewerHome() {
-  const navigate = useNavigate()
-  const [assignments, setAssignments] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [counts, setCounts] = useState({
-    pending_review: 0,
-    approved: 0,
-    changes_requested: 0
-  })
+  const navigate = useNavigate();
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAssignedDrafts = async () => {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data, error } = await supabase
-        .from('draft_assignments')
-        .select(`
-          id,
-          status,
-          draft_id,
-          content_drafts (
-            id,
-            title,
-            body,
-            status,
-            created_at,
-            updated_at,
-            review_by,
-            creator_id,
-            profiles!creator_id (full_name, email)
-          )
-        `)
-        .eq('reviewer_id', user.id)
-
-      if (error) {
-        console.error('Error loading assignments:', error)
-        setLoading(false)
-        return
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
       }
 
-      const draftsWithDetails = (data || [])
-        .filter((assignment) => assignment.content_drafts)
-        .map((assignment) => ({
-          ...assignment.content_drafts,
-          assignmentId: assignment.id,
-          assignmentStatus: assignment.status
-        }))
+      // Simple fetch that works (same as debug version)
+      const { data, error } = await supabase
+        .from('draft_assignments')
+        .select('*, content_drafts(*)')
+        .eq('reviewer_id', user.id);
 
-      setAssignments(draftsWithDetails)
+      if (error) {
+        console.error(error);
+        setLoading(false);
+        return;
+      }
 
-      // Compute counts
-      const pending = draftsWithDetails.filter(d => d.status === 'pending_review').length
-      const approved = draftsWithDetails.filter(d => d.status === 'approved').length
-      const changesRequested = draftsWithDetails.filter(d => d.status === 'changes_requested').length
+      // Filter out drafts with status 'draft' or archived
+      const filtered = (data || [])
+        .filter(item => item.content_drafts && !item.content_drafts.archived_at)
+        .filter(item => item.content_drafts.status !== 'draft')
+        .map(item => ({
+          id: item.content_drafts.id,
+          title: item.content_drafts.title,
+          body: item.content_drafts.body,
+          status: item.content_drafts.status,
+          created_at: item.content_drafts.created_at,
+          assignmentStatus: item.status,
+          assignmentId: item.id,
+        }));
 
-      setCounts({
-        pending_review: pending,
-        approved,
-        changes_requested: changesRequested
-      })
+      setAssignments(filtered);
+      setLoading(false);
+    };
 
-      setLoading(false)
-    }
-
-    fetchAssignedDrafts()
-  }, [])
+    fetchData();
+  }, []);
 
   const getStatusBadge = (status) => {
     const config = {
       draft: { label: 'Draft', color: '#6b7280' },
       pending_review: { label: 'Pending', color: '#eab308' },
       approved: { label: 'Approved', color: '#22c55e' },
-      changes_requested: { label: 'Changes Requested', color: '#f97316' }
-    }
-    const currentConfig = config[status] || config.draft
+      changes_requested: { label: 'Changes Requested', color: '#f97316' },
+    };
+    const current = config[status] || config.draft;
     return (
       <span
         style={{
@@ -88,24 +64,27 @@ export function ReviewerHome() {
           borderRadius: '20px',
           fontSize: '12px',
           fontWeight: '600',
-          backgroundColor: currentConfig.color,
-          color: 'white'
+          backgroundColor: current.color,
+          color: 'white',
         }}
       >
-        {currentConfig.label}
+        {current.label}
       </span>
-    )
-  }
+    );
+  };
 
-  const rowStyle = { cursor: 'pointer' }
+  // Count based on assignmentStatus (reviewer's own decision)
+  const pendingCount = assignments.filter(a => a.assignmentStatus === 'pending').length;
+  const approvedCount = assignments.filter(a => a.assignmentStatus === 'approved').length;
+  const changesRequestedCount = assignments.filter(a => a.assignmentStatus === 'changes_requested').length;
 
   // Show only the 5 most recent drafts (by created_at)
   const recentDrafts = [...assignments]
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 5)
+    .slice(0, 5);
 
   if (loading) {
-    return <div style={{ padding: '24px' }}>Loading your dashboard...</div>
+    return <div style={{ padding: '24px' }}>Loading your dashboard...</div>;
   }
 
   return (
@@ -125,7 +104,7 @@ export function ReviewerHome() {
           onClick={() => navigate('/reviewer/pending')}
         >
           <div className="summary-card-label">Pending</div>
-          <div className="summary-card-count">{counts.pending_review}</div>
+          <div className="summary-card-count">{pendingCount}</div>
         </div>
         <div
           className="summary-card"
@@ -133,7 +112,7 @@ export function ReviewerHome() {
           onClick={() => navigate('/reviewer/approved')}
         >
           <div className="summary-card-label">Approved</div>
-          <div className="summary-card-count">{counts.approved}</div>
+          <div className="summary-card-count">{approvedCount}</div>
         </div>
         <div
           className="summary-card"
@@ -141,7 +120,7 @@ export function ReviewerHome() {
           onClick={() => navigate('/reviewer/changes-requested')}
         >
           <div className="summary-card-label">Changes Requested</div>
-          <div className="summary-card-count">{counts.changes_requested}</div>
+          <div className="summary-card-count">{changesRequestedCount}</div>
         </div>
       </div>
 
@@ -151,7 +130,7 @@ export function ReviewerHome() {
           backgroundColor: '#ffffff',
           border: '2px solid #cbd5e1',
           borderRadius: '12px',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
@@ -173,24 +152,21 @@ export function ReviewerHome() {
                   key={draft.id}
                   onClick={() => {
                     // Navigate to the appropriate filtered page with draftId
-                    const routeMap = {
-                      pending_review: '/reviewer/pending',
-                      approved: '/reviewer/approved',
-                      changes_requested: '/reviewer/changes-requested'
-                    }
-                    const baseRoute = routeMap[draft.status] || '/reviewer/pending'
-                    navigate(`${baseRoute}?draftId=${draft.id}`)
+                    let route = '/reviewer/pending';
+                    if (draft.status === 'approved') route = '/reviewer/approved';
+                    else if (draft.status === 'changes_requested') route = '/reviewer/changes-requested';
+                    navigate(`${route}?draftId=${draft.id}`);
                   }}
                   style={{
-                    ...rowStyle,
-                    borderBottom: index === recentDrafts.length - 1 ? 'none' : '1px solid #e2e8f0'
+                    cursor: 'pointer',
+                    borderBottom: index === recentDrafts.length - 1 ? 'none' : '1px solid #e2e8f0',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                 >
                   <td style={{ padding: '16px', fontWeight: '500' }}>{draft.title}</td>
                   <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
-                    {draft.body.length > 60 ? draft.body.substring(0, 60) + '...' : draft.body}
+                    {draft.body?.length > 60 ? draft.body.substring(0, 60) + '...' : draft.body}
                   </td>
                   <td style={{ padding: '16px' }}>{getStatusBadge(draft.status)}</td>
                   <td style={{ padding: '16px', color: '#475569', fontSize: '14px' }}>
@@ -210,5 +186,5 @@ export function ReviewerHome() {
         </div>
       </div>
     </div>
-  )
+  );
 }
