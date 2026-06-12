@@ -121,12 +121,8 @@ function LoginForm() {
             {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
         </form>
-        {authError && (
-          <div className="status-message error">{authError}</div>
-        )}
-        {authMessage && (
-          <div className="status-message success">{authMessage}</div>
-        )}
+        {authError && <div className="status-message error">{authError}</div>}
+        {authMessage && <div className="status-message success">{authMessage}</div>}
         <button
           onClick={() => {
             setIsSignUp(!isSignUp)
@@ -202,11 +198,13 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          {/* Root route: creators see AllDraftsPage, reviewers go to /reviewer */}
+          {/* Root route: redirect based on role */}
           <Route
             index
             element={
-              profile.role === 'reviewer' ? (
+              profile.role === 'admin' ? (
+                <Navigate to="/admin" replace />
+              ) : profile.role === 'reviewer' ? (
                 <Navigate to="/reviewer" replace />
               ) : (
                 <AllDraftsPage profile={profile} />

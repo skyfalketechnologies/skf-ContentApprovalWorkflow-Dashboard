@@ -1,118 +1,116 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 
-// Helper to get tomorrow's date in YYYY-MM-DD format
-function getTomorrowDate() {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  return tomorrow.toISOString().split('T')[0]
-}
-
-export function AssignReviewers({
-  value = [],
-  deadlineValue = '',
-  onAssignmentsChange,
-  onDeadlineChange
-}) {
-  const [reviewers, setReviewers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+export function AssignReviewers({ value, deadlineValue, onAssignmentsChange, onDeadlineChange }) {
+  const [reviewers, setReviewers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [maxWorkload, setMaxWorkload] = useState(5);
 
   useEffect(() => {
-    let mounted = true
-    const fetchReviewers = async () => {
-      setLoading(true)
-      setError('')
-      const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('role', 'reviewer')
-        .order('full_name', { ascending: true })
+    let mounted = true;
+    const fetchData = async () => {
+      setLoading(true);
+      // Get max_workload
+      const { data: settings } = await supabase
+        .from('system_settings')
+        .select('max_workload')
+        .single();
+      if (settings) setMaxWorkload(settings.max_workload);
 
-      if (!mounted) return
-      if (fetchError) {
-        setError('Error loading reviewers: ' + fetchError.message)
-        setReviewers([])
+      // Get reviewer performance (only active reviewers)
+      const { data: perf, error: perfError } = await supabase
+        .from('reviewer_performance')
+        .select('id, full_name, email, pending_count, is_active')
+        .eq('is_active', true);
+      if (perfError) {
+        setError(perfError.message);
       } else {
-        setReviewers(data || [])
+        setReviewers(perf || []);
       }
-      setLoading(false)
-    }
-    fetchReviewers()
-    return () => { mounted = false }
-  }, [])
+      setLoading(false);
+    };
+    fetchData();
+    return () => { mounted = false };
+  }, []);
 
-  const selectedReviewerIds = [...new Set((value || []).filter(Boolean))]
+  const selectedIds = value || [];
 
-  const toggleReviewer = (reviewerId) => {
-    const isSelected = selectedReviewerIds.includes(reviewerId)
+  const toggleReviewer = (id) => {
+    const isSelected = selectedIds.includes(id);
     if (isSelected) {
-      onAssignmentsChange(selectedReviewerIds.filter(id => id !== reviewerId))
-      return
+      onAssignmentsChange(selectedIds.filter(i => i !== id));
+    } else {
+      if (selectedIds.length >= 3) return;
+      onAssignmentsChange([...selectedIds, id]);
     }
-    if (selectedReviewerIds.length >= 3) return
-    onAssignmentsChange([...new Set([...selectedReviewerIds, reviewerId])])
-  }
+  };
+
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   return (
     <div style={{ marginTop: '16px' }}>
-      <h3 style={{ marginBottom: '12px' }}>Assign Reviewers</h3>
-      {error && <div style={{ marginBottom: '12px', color: '#991b1b' }}>{error}</div>}
+      <h3>Assign Reviewers</h3>
       <div style={{ marginBottom: '16px' }}>
-        <label htmlFor="review-deadline" style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
-          Review Deadline
-        </label>
+        <label>Review Deadline (must be tomorrow or later)</label>
         <input
-          id="review-deadline"
           type="date"
           value={deadlineValue || ''}
-          min={getTomorrowDate()}   // ✅ Only allow dates from tomorrow onward
+          min={getTomorrowDate()}
           onChange={(e) => onDeadlineChange(e.target.value)}
           className="form-input"
         />
       </div>
-      <div>
-        <p style={{ marginBottom: '8px', fontWeight: '500' }}>Select up to 3 reviewers</p>
-        {loading ? (
-          <div>Loading reviewers...</div>
-        ) : reviewers.length === 0 ? (
-          <div style={{ color: '#6b7280' }}>No reviewers available.</div>
-        ) : (
-          <div style={{ display: 'grid', gap: '10px' }}>
-            {reviewers.map((reviewer) => {
-              const isChecked = selectedReviewerIds.includes(reviewer.id)
-              const disableUnchecked = !isChecked && selectedReviewerIds.length >= 3
-              return (
-                <label
-                  key={reviewer.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 12px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    backgroundColor: disableUnchecked ? '#f8fafc' : '#ffffff',
-                    opacity: disableUnchecked ? 0.7 : 1,
-                    cursor: disableUnchecked ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    disabled={disableUnchecked}
-                    onChange={() => toggleReviewer(reviewer.id)}
-                  />
-                  <div>
-                    <div style={{ fontWeight: '500' }}>{reviewer.full_name || reviewer.email}</div>
-                    <div style={{ fontSize: '13px', color: '#475569' }}>{reviewer.email}</div>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
-        )}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {loading ? (
+        <div>Loading reviewers...</div>
+      ) : reviewers.length === 0 ? (
+        <div>No active reviewers available</div>
+      ) : (
+        reviewers.map(reviewer => {
+          const isOverWorkload = reviewer.pending_count >= maxWorkload;
+          const isSelected = selectedIds.includes(reviewer.id);
+          const disabled = isOverWorkload || (!isSelected && selectedIds.length >= 3);
+          return (
+            <label
+              key={reviewer.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px',
+                border: '1px solid #cbd5e1',
+                marginBottom: '8px',
+                borderRadius: '8px',
+                opacity: disabled ? 0.6 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                backgroundColor: isSelected ? '#e6f7ff' : 'white'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isSelected}
+                disabled={disabled}
+                onChange={() => toggleReviewer(reviewer.id)}
+              />
+              <div>
+                <div>{reviewer.full_name || reviewer.email}</div>
+                <div style={{ fontSize: '12px', color: '#666' }}>
+                  {reviewer.email} • {reviewer.pending_count} pending / cap {maxWorkload}
+                  {isOverWorkload && <span style={{ color: 'red' }}> (at capacity)</span>}
+                </div>
+              </div>
+            </label>
+          );
+        })
+      )}
+      <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+        Max 3 reviewers per draft. Reviewers with {maxWorkload}+ pending are unavailable.
       </div>
     </div>
-  )
+  );
 }

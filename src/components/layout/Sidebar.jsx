@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 
 // Dashboard icon (grid layout)
 const DashboardIcon = () => (
@@ -91,9 +91,30 @@ const ArchiveIcon = () => (
   </svg>
 )
 
+const UsersIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+)
+
+const RefreshIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+    <path d="M23 4v6h-6" />
+    <path d="M1 20v-6h6" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+    <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+  </svg>
+)
+
 export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
   const [collapsed, setCollapsed] = useState(false)
+  const location = useLocation()
   if (!profile) return null
+
+  const currentTab = new URLSearchParams(location.search).get('tab')
 
   const creatorLinks = [
     { to: '/', icon: DashboardIcon, label: 'Dashboard', end: true },
@@ -105,13 +126,26 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
   ]
 
   const reviewerLinks = [
-    { to: '/reviewer', icon: DashboardIcon, label: 'Dashboard', end: true },  // Now points to reviewer home
+    { to: '/reviewer', icon: DashboardIcon, label: 'Dashboard', end: true },
     { to: '/reviewer/pending', icon: ClockIcon, label: 'Pending' },
     { to: '/reviewer/approved', icon: CheckCircleIcon, label: 'Approved' },
     { to: '/reviewer/changes-requested', icon: XCircleIcon, label: 'Changes Requested' }
   ]
 
-  const links = profile.role === 'creator' ? creatorLinks : reviewerLinks
+  const adminLinks = [
+    { to: '/admin?tab=analytics', icon: DashboardIcon, label: 'Analytics', tab: 'analytics' },
+    { to: '/admin?tab=reviewers', icon: UsersIcon, label: 'Reviewers', tab: 'reviewers' },
+    { to: '/admin?tab=reassign', icon: RefreshIcon, label: 'Reassign Drafts', tab: 'reassign' }
+  ]
+
+  let links
+  if (profile.role === 'admin') {
+    links = adminLinks
+  } else if (profile.role === 'reviewer') {
+    links = reviewerLinks
+  } else {
+    links = creatorLinks
+  }
 
   return (
     <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
@@ -133,12 +167,21 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
       <nav className="sidebar-nav">
         {links.map(item => {
           const Icon = item.icon
+          const isAdminTabLink = profile.role === 'admin' && item.tab
+          const isActiveAdminTab =
+            isAdminTabLink &&
+            location.pathname === '/admin' &&
+            currentTab === item.tab
+
           return (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end || false}
-              className={({ isActive }) => (isActive ? 'sidebar-link active' : 'sidebar-link')}
+              className={({ isActive }) => {
+                const active = isAdminTabLink ? isActiveAdminTab : isActive
+                return active ? 'sidebar-link active' : 'sidebar-link'
+              }}
             >
               <Icon />
               <span className="sidebar-label">{item.label}</span>
@@ -149,11 +192,11 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
 
       <div className="sidebar-footer">
         {!collapsed && <div className="sidebar-footer-meta">Role: {profile.role}</div>}
-        <button className="btn-sidebar" onClick={onOpenProfileSettings}>
+        <button type="button" className="btn-sidebar" onClick={onOpenProfileSettings}>
           <SettingsIcon />
           {!collapsed && <span>Profile Settings</span>}
         </button>
-        <button className="btn-sidebar" onClick={onSignOut}>
+        <button type="button" className="btn-sidebar" onClick={onSignOut}>
           <LogOutIcon />
           {!collapsed && <span>Sign Out</span>}
         </button>
