@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient.js';
 
 export function AssignReviewers({ value, deadlineValue, onAssignmentsChange, onDeadlineChange }) {
   const [reviewers, setReviewers] = useState([]);

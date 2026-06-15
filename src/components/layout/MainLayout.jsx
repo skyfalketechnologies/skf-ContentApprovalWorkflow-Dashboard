@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { Sidebar } from './Sidebar'
+import { Sidebar } from './Sidebar.jsx'
 
 // feature: page shell that combines sidebar navigation with main content area
 export function MainLayout({ profile, onSignOut, onOpenProfileSettings }) {

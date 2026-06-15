@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient.js';
 
 export async function submitReviewDecision(draftId, decision, comment) {
   console.log('=== submitReviewDecision called ===');

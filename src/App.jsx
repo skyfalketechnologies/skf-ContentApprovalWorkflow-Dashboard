@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
-import { supabase } from './lib/supabaseClient'
-import { useAuth } from './hooks/useAuth'
-import { CreatorDashboard } from './components/dashboard/CreatorDashboard'
-import { ReviewerDashboard } from './components/dashboard/ReviewerDashboard'
-import { ReviewerHome } from './components/dashboard/ReviewerHome'
-import { AllDraftsPage } from './components/dashboard/AllDraftsPage'
-import { AdminDashboard } from './components/admin/AdminDashboard'
-import { MainLayout } from './components/layout/MainLayout'
-import { ProfileSettings } from './components/profile/ProfileSettings'
-import { PrivateRoute } from './components/auth/PrivateRoute'
-import { RoleBasedRoute } from './components/auth/RoleBasedRoute'
+import { supabase } from './lib/supabaseClient.js'
+import { useAuth } from './hooks/useAuth.js'
+import { CreatorDashboard } from './components/dashboard/CreatorDashboard.jsx'
+import { ReviewerDashboard } from './components/dashboard/ReviewerDashboard.jsx'
+import { ReviewerHome } from './components/dashboard/ReviewerHome.jsx'
+import { AllDraftsPage } from './components/dashboard/AllDraftsPage.jsx'
+import { AdminDashboard } from './components/admin/AdminDashboard.jsx'
+import { MainLayout } from './components/layout/MainLayout.jsx'
+import { ProfileSettings } from './components/profile/ProfileSettings.jsx'
+import { PrivateRoute } from './components/auth/PrivateRoute.jsx'
+import { RoleBasedRoute } from './components/auth/RoleBasedRoute.jsx'
 import './index.css'
 
 function LoginForm() {
@@ -18,7 +18,6 @@ function LoginForm() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('creator')
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -43,7 +42,7 @@ function LoginForm() {
         options: {
           data: {
             full_name: fullName.trim(),
-            role
+            role: 'creator'
           }
         }
       })
@@ -69,7 +68,7 @@ function LoginForm() {
       <div className="auth-panel">
         <h1 className="auth-title">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
         <p className="auth-subtitle">
-          {isSignUp ? 'Create a new account' : 'Sign in to your account'}
+          {isSignUp ? 'Create a new creator account' : 'Sign in to your account'}
         </p>
         <form onSubmit={handleSubmit}>
           {isSignUp && (
@@ -84,16 +83,8 @@ function LoginForm() {
                   required
                 />
               </div>
-              <div className="form-field">
-                <label className="form-label">Account type</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="creator">Creator</option>
-                  <option value="reviewer">Reviewer</option>
-                </select>
+              <div className="form-field" style={{ fontSize: '13px', color: '#475569', marginTop: '-8px', marginBottom: '12px' }}>
+                <em>New accounts are created as Creators. To become a Reviewer, ask an Admin to promote your account.</em>
               </div>
             </>
           )}
@@ -126,7 +117,6 @@ function LoginForm() {
         <button
           onClick={() => {
             setIsSignUp(!isSignUp)
-            setRole('creator')
             setAuthError('')
             setAuthMessage('')
           }}
@@ -142,6 +132,17 @@ function LoginForm() {
 export default function App() {
   const { user, profile, profileError, authError, loading, signOut, updateProfile } = useAuth()
   const [showProfileSettings, setShowProfileSettings] = useState(false)
+  const [profileTimeout, setProfileTimeout] = useState(false)
+
+  // Wait 20 seconds before showing profile error
+  useEffect(() => {
+    if (!loading && user && !profile && !profileTimeout) {
+      const timer = setTimeout(() => {
+        setProfileTimeout(true)
+      }, 20000) // 20 seconds
+      return () => clearTimeout(timer)
+    }
+  }, [loading, user, profile, profileTimeout])
 
   if (loading) {
     return (
@@ -173,6 +174,16 @@ export default function App() {
   }
 
   if (!profile) {
+    // Show loading indicator while waiting for profile (up to 20 seconds)
+    if (!profileTimeout) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', flexDirection: 'column' }}>
+          <div>Loading profile data...</div>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>If this takes more than 20 seconds, please refresh.</div>
+        </div>
+      )
+    }
+    // After 20 seconds, show error with sign-out button
     return (
       <div style={{ padding: '24px' }}>
         <h2>Profile unavailable</h2>

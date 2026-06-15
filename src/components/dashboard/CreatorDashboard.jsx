@@ -1,10 +1,10 @@
 import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseClient'
-import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
-import { DraftDetailView } from './DraftDetailView'
-import { AssignReviewers } from '../forms/AssignReviewers'
-import { saveDraftAssignments } from '../../utils/draftAssignments'
+import { supabase } from '../../lib/supabaseClient.js'
+import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime.js'
+import { DraftDetailView } from './DraftDetailView.jsx'
+import { AssignReviewers } from '../forms/AssignReviewers.jsx'
+import { saveDraftAssignments } from '../../utils/draftAssignments.js'
 
 export function CreatorDashboard({ profile, filter = 'all' }) {
   const [searchParams, setSearchParams] = useSearchParams()

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient.js'
 
 const REQUEST_TIMEOUT_MS = 8000
 

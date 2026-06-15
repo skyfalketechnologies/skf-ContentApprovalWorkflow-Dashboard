@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient.js';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar
@@ -17,36 +17,74 @@ export function AdminAnalytics() {
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
-    // 1. Daily submissions
-    const { data: daily } = await supabase
-      .from('daily_submissions')
-      .select('*')
-      .order('date', { ascending: true });
-    setDailyData(daily || []);
+    try {
+      // 1. Total drafts (non-archived)
+      const { count: total, error: totalError } = await supabase
+        .from('content_drafts')
+        .select('*', { count: 'exact', head: true })
+        .is('archived_at', null);
+      if (!totalError) setTotalDrafts(total || 0);
 
-    // 2. Status distribution
-    const { data: status } = await supabase.rpc('status_distribution');
-    setStatusData(status || []);
+      // 2. Status distribution (manual)
+      const { data: allDrafts, error: statusError } = await supabase
+        .from('content_drafts')
+        .select('status')
+        .is('archived_at', null);
+      if (!statusError && allDrafts) {
+        const counts = {};
+        allDrafts.forEach(d => { counts[d.status] = (counts[d.status] || 0) + 1; });
+        const formatted = Object.entries(counts).map(([status, count]) => ({ status, count }));
+        setStatusData(formatted);
+      }
 
-    // 3. Reviewer workload (pending counts)
-    const { data: reviewers } = await supabase
-      .from('reviewer_performance')
-      .select('full_name, pending_count')
-      .eq('is_active', true)
-      .order('pending_count', { ascending: false });
-    setReviewerWorkload(reviewers || []);
+      // 3. Daily submissions (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data: dailyRaw, error: dailyError } = await supabase
+        .from('content_drafts')
+        .select('created_at')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .is('archived_at', null);
+      if (!dailyError && dailyRaw) {
+        const dailyCounts = {};
+        dailyRaw.forEach(d => {
+          const date = d.created_at.split('T')[0];
+          dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+        });
+        const formatted = Object.entries(dailyCounts)
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        setDailyData(formatted);
+      }
 
-    // 4. Average approval time
-    const { data: avgTime } = await supabase.rpc('avg_approval_time_hours');
-    setAvgApprovalTime(avgTime || 0);
+      // 4. Average approval time (manual)
+      const { data: approved, error: avgError } = await supabase
+        .from('content_drafts')
+        .select('created_at, updated_at')
+        .eq('status', 'approved')
+        .is('archived_at', null);
+      if (!avgError && approved && approved.length > 0) {
+        let totalHours = 0;
+        approved.forEach(d => {
+          const created = new Date(d.created_at);
+          const updated = new Date(d.updated_at);
+          const hours = (updated - created) / (1000 * 60 * 60);
+          totalHours += hours;
+        });
+        setAvgApprovalTime(Math.round((totalHours / approved.length) * 10) / 10);
+      }
 
-    // 5. Total drafts (active, not archived)
-    const { count } = await supabase
-      .from('content_drafts')
-      .select('*', { count: 'exact', head: true })
-      .is('archived_at', null);
-    setTotalDrafts(count || 0);
+      // 5. Reviewer workload from reviewer_performance view
+      const { data: reviewers, error: revError } = await supabase
+        .from('reviewer_performance')
+        .select('full_name, pending_count')
+        .eq('is_active', true)
+        .order('pending_count', { ascending: false });
+      if (!revError) setReviewerWorkload(reviewers || []);
 
+    } catch (err) {
+      console.error('Analytics fetch error:', err);
+    }
     setLoading(false);
   }, []);
 
@@ -100,7 +138,7 @@ export function AdminAnalytics() {
         </div>
       </div>
 
-      {/* Draft Volume Over Time */}
+      {/* Draft Submissions Chart */}
       <div style={{ marginBottom: '32px' }}>
         <h3>Draft Submissions (Last 30 Days)</h3>
         {dailyData.length === 0 ? (

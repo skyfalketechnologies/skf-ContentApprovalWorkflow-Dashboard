@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../hooks/useAuth.js'
 
 export function RoleBasedRoute({ children, allowedRoles }) {
   const { profile, loading } = useAuth()

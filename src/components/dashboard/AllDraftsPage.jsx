@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime'
+import { useSupabaseRealtime } from '../../hooks/useSupabaseRealtime.js'
 
 export function AllDraftsPage({ profile }) {
   const navigate = useNavigate()

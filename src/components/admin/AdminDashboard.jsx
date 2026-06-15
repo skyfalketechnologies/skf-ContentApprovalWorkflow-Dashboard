@@ -1,12 +1,13 @@
 import { useSearchParams } from 'react-router-dom';
-import { AdminReviewerManagement } from './AdminReviewerManagement';
-import { AdminDraftReassign } from './AdminDraftReassign';
-import { AdminAnalytics } from './AdminAnalytics';
+import { AdminReviewerManagement } from './AdminReviewerManagement.jsx';
+import { AdminDraftReassign } from './AdminDraftReassign.jsx';
+import { AdminAnalytics } from './AdminAnalytics.jsx';
+import { AdminUserManagement } from './AdminUserManagement.jsx';
 
 export function AdminDashboard() {
   const [searchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
-  const validTabs = ['analytics', 'reviewers', 'reassign'];
+  const validTabs = ['analytics', 'reviewers', 'reassign', 'users'];
   const tab = validTabs.includes(rawTab) ? rawTab : 'analytics';
 
   const renderContent = () => {
@@ -15,6 +16,8 @@ export function AdminDashboard() {
         return <AdminReviewerManagement />;
       case 'reassign':
         return <AdminDraftReassign />;
+      case 'users':
+        return <AdminUserManagement />;
       default:
         return <AdminAnalytics />;
     }

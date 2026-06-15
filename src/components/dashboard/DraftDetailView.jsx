@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabaseClient.js'
 import { StatusBadge } from '../common/StatusBadge.jsx'
 import { ExportButton } from '../common/ExportButton.jsx'

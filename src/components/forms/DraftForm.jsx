@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase } from '../../lib/supabaseClient.js'
 
 export function DraftForm({ draft, userId, onSave, onCancel }) {
   const [title, setTitle] = useState(draft?.title || '')

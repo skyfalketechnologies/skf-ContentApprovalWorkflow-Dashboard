@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase } from '../../lib/supabaseClient.js'
 
 export function AuditTrail({ draftId, onClose }) {
   const [timeline, setTimeline] = useState([])

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient.js'
 
 // feature: reusable Supabase realtime hook
 // feature: supports optional filtering or full table subscriptions

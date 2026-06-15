@@ -1,4 +1,4 @@
-import { StatusBadge } from '../common/StatusBadge'
+import { StatusBadge } from '../common/StatusBadge.jsx'
 
 export function DraftCard({ draft, role, onEdit, onDelete, onSubmit, onReview, onViewAudit }) {
   // Determine if creator can edit or submit this draft (draft or changes_requested)

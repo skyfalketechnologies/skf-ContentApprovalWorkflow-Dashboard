@@ -134,6 +134,7 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
 
   const adminLinks = [
     { to: '/admin?tab=analytics', icon: DashboardIcon, label: 'Analytics', tab: 'analytics' },
+    { to: '/admin?tab=users', icon: UsersIcon, label: 'All Users', tab: 'users' },  // NEW
     { to: '/admin?tab=reviewers', icon: UsersIcon, label: 'Reviewers', tab: 'reviewers' },
     { to: '/admin?tab=reassign', icon: RefreshIcon, label: 'Reassign Drafts', tab: 'reassign' }
   ]
