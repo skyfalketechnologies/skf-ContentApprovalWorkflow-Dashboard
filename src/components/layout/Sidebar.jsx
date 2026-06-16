@@ -109,7 +109,7 @@ const RefreshIcon = () => (
   </svg>
 )
 
-export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
+export function Sidebar({ profile, onSignOut }) {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
   if (!profile) return null
@@ -134,9 +134,10 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
 
   const adminLinks = [
     { to: '/admin?tab=analytics', icon: DashboardIcon, label: 'Analytics', tab: 'analytics' },
-    { to: '/admin?tab=users', icon: UsersIcon, label: 'All Users', tab: 'users' },  // NEW
+    { to: '/admin?tab=users', icon: UsersIcon, label: 'All Users', tab: 'users' },
     { to: '/admin?tab=reviewers', icon: UsersIcon, label: 'Reviewers', tab: 'reviewers' },
-    { to: '/admin?tab=reassign', icon: RefreshIcon, label: 'Reassign Drafts', tab: 'reassign' }
+    { to: '/admin?tab=reassign', icon: RefreshIcon, label: 'Reassign Drafts', tab: 'reassign' },
+    { to: '/admin?tab=settings', icon: SettingsIcon, label: 'Settings', tab: 'settings' }
   ]
 
   let links
@@ -193,10 +194,6 @@ export function Sidebar({ profile, onSignOut, onOpenProfileSettings }) {
 
       <div className="sidebar-footer">
         {!collapsed && <div className="sidebar-footer-meta">Role: {profile.role}</div>}
-        <button type="button" className="btn-sidebar" onClick={onOpenProfileSettings}>
-          <SettingsIcon />
-          {!collapsed && <span>Profile Settings</span>}
-        </button>
         <button type="button" className="btn-sidebar" onClick={onSignOut}>
           <LogOutIcon />
           {!collapsed && <span>Sign Out</span>}

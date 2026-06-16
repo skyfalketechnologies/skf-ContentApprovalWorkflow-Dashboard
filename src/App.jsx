@@ -8,7 +8,6 @@ import { ReviewerHome } from './components/dashboard/ReviewerHome.jsx'
 import { AllDraftsPage } from './components/dashboard/AllDraftsPage.jsx'
 import { AdminDashboard } from './components/admin/AdminDashboard.jsx'
 import { MainLayout } from './components/layout/MainLayout.jsx'
-import { ProfileSettings } from './components/profile/ProfileSettings.jsx'
 import { PrivateRoute } from './components/auth/PrivateRoute.jsx'
 import { RoleBasedRoute } from './components/auth/RoleBasedRoute.jsx'
 import './index.css'
@@ -131,7 +130,6 @@ function LoginForm() {
 
 export default function App() {
   const { user, profile, profileError, authError, loading, signOut, updateProfile } = useAuth()
-  const [showProfileSettings, setShowProfileSettings] = useState(false)
   const [profileTimeout, setProfileTimeout] = useState(false)
 
   // Wait 20 seconds before showing profile error
@@ -204,7 +202,6 @@ export default function App() {
               <MainLayout
                 profile={profile}
                 onSignOut={signOut}
-                onOpenProfileSettings={() => setShowProfileSettings(true)}
               />
             </PrivateRoute>
           }
@@ -320,14 +317,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-
-      {showProfileSettings && (
-        <ProfileSettings
-          profile={profile}
-          onUpdateProfile={updateProfile}
-          onClose={() => setShowProfileSettings(false)}
-        />
-      )}
     </Router>
   )
 }

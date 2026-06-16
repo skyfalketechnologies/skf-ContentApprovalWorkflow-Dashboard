@@ -3,11 +3,12 @@ import { AdminReviewerManagement } from './AdminReviewerManagement.jsx';
 import { AdminDraftReassign } from './AdminDraftReassign.jsx';
 import { AdminAnalytics } from './AdminAnalytics.jsx';
 import { AdminUserManagement } from './AdminUserManagement.jsx';
+import { AdminSettings } from './AdminSettings.jsx';
 
 export function AdminDashboard() {
   const [searchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
-  const validTabs = ['analytics', 'reviewers', 'reassign', 'users'];
+  const validTabs = ['analytics', 'reviewers', 'reassign', 'users', 'settings'];
   const tab = validTabs.includes(rawTab) ? rawTab : 'analytics';
 
   const renderContent = () => {
@@ -18,6 +19,8 @@ export function AdminDashboard() {
         return <AdminDraftReassign />;
       case 'users':
         return <AdminUserManagement />;
+      case 'settings':
+        return <AdminSettings />;
       default:
         return <AdminAnalytics />;
     }
