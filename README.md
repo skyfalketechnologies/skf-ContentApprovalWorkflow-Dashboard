@@ -67,25 +67,40 @@ Content Flow is a role‑based content approval dashboard built for teams that n
 
 ---
 
-## Prerequisites
+## Getting Started
+
+### Prerequisites
 
 - Node.js (v18 or later)
 - npm or yarn
 - A Supabase account (free tier is fine)
 
-## Clone the repository
--git clone <your-repository-url>
--cd content-flow
+### Usage Guide
 
-## Install project packages
-  npm install
+### Demo Accounts (password: `test123`)
+| Role | Email |
+|------|-------|
+| Admin | admin@test.com |
+| Reviewer | reviewer1@test.com |
+| Creator | creator1@test.com |
+
+> New users sign up as Creators. Admins can promote users via the Admin Dashboard.
+
+
+### Clone the repository
+- git clone <your-repository-url>
+- cd content-flow
+
+  
+### Install project packages
+- npm install
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anonymous_key
 
-## Run the development server
+### Run the development server
 npm run dev
 
-## Database Setup Script (SQL)
+### Database Setup Script (SQL)
  -Run this initialization script inside your Supabase SQL Editor to automatically generate the required database tables
 
 -- 1. PROFILES TABLE
