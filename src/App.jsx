@@ -31,7 +31,7 @@ function LoginForm() {
     let result
     if (isSignUp) {
       if (!fullName.trim()) {
-        setAuthError('Please enter your display name.')
+        setAuthError('Please enter your User Name.')
         setLoading(false)
         return
       }
@@ -73,7 +73,7 @@ function LoginForm() {
           {isSignUp && (
             <>
               <div className="form-field">
-                <label className="form-label">Display name</label>
+                <label className="form-label">User Name</label>
                 <input
                   type="text"
                   value={fullName}

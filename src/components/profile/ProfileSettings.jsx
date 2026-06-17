@@ -12,7 +12,7 @@ export function ProfileSettings({ profile, onUpdateProfile, onClose }) {
     setMessage('')
 
     if (!fullName.trim()) {
-      setError('Please enter your display name.')
+      setError('Please enter your User Name.')
       return
     }
 
@@ -39,7 +39,7 @@ export function ProfileSettings({ profile, onUpdateProfile, onClose }) {
         <form onSubmit={handleSubmit}>
           <div className="form-field">
             <label className="form-label">
-              Display name
+              Username
             </label>
             <input
               type="text"
