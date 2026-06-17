@@ -72,3 +72,74 @@ Content Flow is a role‑based content approval dashboard built for teams that n
 - Node.js (v18 or later)
 - npm or yarn
 - A Supabase account (free tier is fine)
+
+## Clone the repository
+-git clone <your-repository-url>
+-cd content-flow
+
+## Install project packages
+  npm install
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anonymous_key
+
+## Run the development server
+npm run dev
+
+## Database Setup Script (SQL)
+ -Run this initialization script inside your Supabase SQL Editor to automatically generate the required database tables
+
+-- 1. PROFILES TABLE
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('creator', 'reviewer', 'admin')) DEFAULT 'creator',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. CONTENT DRAFTS TABLE
+CREATE TABLE content_drafts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('draft', 'pending_review', 'approved', 'changes_requested')) DEFAULT 'draft',
+    creator_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    review_by TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    archived_at TIMESTAMP WITH TIME ZONE,
+    content_type TEXT
+);
+
+-- 3. DRAFT ASSIGNMENTS TABLE
+CREATE TABLE draft_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    draft_id UUID REFERENCES content_drafts(id) ON DELETE CASCADE,
+    reviewer_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'changes_requested')) DEFAULT 'pending',
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    responded_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 4. COMMENTS TABLE
+CREATE TABLE comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    draft_id UUID REFERENCES content_drafts(id) ON DELETE CASCADE,
+    reviewer_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    comment_text TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 5. SYSTEM SETTINGS TABLE
+CREATE TABLE system_settings (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1), -- Ensures singleton row
+    max_workload INTEGER NOT NULL DEFAULT 10,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert Default Workload Cap Configuration
+INSERT INTO system_settings (id, max_workload) VALUES (1, 10) ON CONFLICT DO NOTHING;
+
