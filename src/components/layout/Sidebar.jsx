@@ -136,8 +136,7 @@ export function Sidebar({ profile, onSignOut }) {
     { to: '/admin?tab=analytics', icon: DashboardIcon, label: 'Analytics', tab: 'analytics' },
     { to: '/admin?tab=users', icon: UsersIcon, label: 'All Users', tab: 'users' },
     { to: '/admin?tab=reviewers', icon: UsersIcon, label: 'Reviewers', tab: 'reviewers' },
-    { to: '/admin?tab=reassign', icon: RefreshIcon, label: 'Reassign Drafts', tab: 'reassign' },
-    { to: '/admin?tab=settings', icon: SettingsIcon, label: 'Settings', tab: 'settings' }
+    { to: '/admin?tab=reassign', icon: RefreshIcon, label: 'Reassign Drafts', tab: 'reassign' }
   ]
 
   let links
