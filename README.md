@@ -155,6 +155,6 @@ CREATE TABLE system_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert Default Workload Cap Configuration
-INSERT INTO system_settings (id, max_workload) VALUES (1, 10) ON CONFLICT DO NOTHING;
+- Insert Default Workload Cap Configuration
+-- INSERT INTO system_settings (id, max_workload) VALUES (1, 10) ON CONFLICT DO NOTHING;
 
