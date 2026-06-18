@@ -94,14 +94,14 @@ Content Flow is a role‑based content approval dashboard built for teams that n
   
 ### Install project packages
 - npm install
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anonymous_key
+- VITE_SUPABASE_URL=your_supabase_project_url
+- VITE_SUPABASE_ANON_KEY=your_supabase_anonymous_key
 
 ### Run the development server
-npm run dev
+- npm run dev
 
 ### Database Setup Script (SQL)
- -Run this initialization script inside your Supabase SQL Editor to automatically generate the required database tables
+ - Run this initialization script inside your Supabase SQL Editor to automatically generate the required database tables
 
 -- 1. PROFILES TABLE
 CREATE TABLE profiles (
