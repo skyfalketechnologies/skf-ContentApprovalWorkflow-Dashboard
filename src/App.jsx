@@ -31,7 +31,7 @@ function LoginForm() {
     let result
     if (isSignUp) {
       if (!fullName.trim()) {
-        setAuthError('Please enter your User Name.')
+        setAuthError('Please enter your display name.')
         setLoading(false)
         return
       }
@@ -62,67 +62,158 @@ function LoginForm() {
     setLoading(false)
   }
 
+  // Logo icon – same as sidebar
+  const LogoIcon = () => (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="14" y="14" width="8" height="8" rx="2" />
+      <rect x="2" y="2" width="8" height="8" rx="2" />
+      <path d="M7 14v1a2 2 0 0 0 2 2h1" />
+      <path d="M14 7h1a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+
   return (
-    <div className="auth-shell">
-      <div className="auth-panel">
-        <h1 className="auth-title">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
-        <p className="auth-subtitle">
-          {isSignUp ? 'Create a new creator account' : 'Sign in to your account'}
-        </p>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#f8fafc',
+      padding: '20px'
+    }}>
+      <div style={{
+        maxWidth: '440px',
+        width: '100%',
+        backgroundColor: '#ffffff',
+        border: '2px solid #cbd5e1',
+        borderRadius: '20px',
+        padding: '40px 32px',
+        boxSizing: 'border-box'
+      }}>
+        {/* Brand Header */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#0a1a2f' }}>
+            <LogoIcon />
+          </div>
+          <h1 style={{ fontSize: '26px', fontWeight: '700', margin: 0, color: '#0f172a' }}>
+            Content Flow
+          </h1>
+          <p style={{ fontSize: '14px', color: '#475569', marginTop: '4px' }}>
+            {isSignUp ? 'Create your creator account' : 'Sign in to your dashboard'}
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit}>
           {isSignUp && (
             <>
               <div className="form-field">
-                <label className="form-label">User Name</label>
+                <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+                  Display name
+                </label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="form-input"
                   required
+                  style={{ width: '100%', padding: '12px 14px', border: '2px solid #cbd5e1', borderRadius: '12px', fontSize: '15px' }}
                 />
               </div>
-              <div className="form-field" style={{ fontSize: '13px', color: '#475569', marginTop: '-8px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', color: '#475569', marginTop: '-8px', marginBottom: '12px' }}>
                 <em>New accounts are created as Creators. To become a Reviewer, ask an Admin to promote your account.</em>
               </div>
             </>
           )}
           <div className="form-field">
-            <label className="form-label">Email</label>
+            <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+              Email
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="form-input"
               required
+              style={{ width: '100%', padding: '12px 14px', border: '2px solid #cbd5e1', borderRadius: '12px', fontSize: '15px' }}
             />
           </div>
           <div className="form-field">
-            <label className="form-label">Password</label>
+            <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontWeight: '500' }}>
+              Password
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="form-input"
               required
+              style={{ width: '100%', padding: '12px 14px', border: '2px solid #cbd5e1', borderRadius: '12px', fontSize: '15px' }}
             />
           </div>
-          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px',
+              backgroundColor: '#1e40af',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+              transition: 'background-color 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) e.currentTarget.style.backgroundColor = '#1d4ed8'
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) e.currentTarget.style.backgroundColor = '#1e40af'
+            }}
+          >
             {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
         </form>
-        {authError && <div className="status-message error">{authError}</div>}
-        {authMessage && <div className="status-message success">{authMessage}</div>}
+
+        {authError && (
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '10px', fontSize: '14px' }}>
+            {authError}
+          </div>
+        )}
+        {authMessage && (
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#dcfce7', color: '#166534', borderRadius: '10px', fontSize: '14px' }}>
+            {authMessage}
+          </div>
+        )}
+
         <button
           onClick={() => {
             setIsSignUp(!isSignUp)
             setAuthError('')
             setAuthMessage('')
           }}
-          className="auth-toggle"
+          style={{
+            marginTop: '20px',
+            background: 'none',
+            border: 'none',
+            color: '#1e40af',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            width: '100%',
+            textAlign: 'center',
+            padding: '8px'
+          }}
         >
           {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
         </button>
+
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '13px', color: '#6b7280' }}>
+          Content Flow – content approval dashboard
+        </div>
       </div>
     </div>
   )

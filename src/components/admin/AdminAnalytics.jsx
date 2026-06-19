@@ -5,6 +5,41 @@ import {
   PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 
+// Professional color palette
+const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const CHART_COLORS = {
+  indigo: '#4F46E5',
+  emerald: '#10B981',
+  amber: '#F59E0B',
+  rose: '#EF4444',
+  purple: '#8B5CF6'
+};
+
+// Custom Tooltip with modern design
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        backgroundColor: 'white',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        border: '1px solid #E5E7EB',
+        fontSize: '14px',
+        minWidth: '120px'
+      }}>
+        <p style={{ margin: '0 0 4px 0', fontWeight: '600', color: '#1F2937' }}>{label}</p>
+        {payload.map((entry, index) => (
+          <p key={index} style={{ margin: '4px 0', color: entry.color || '#4B5563' }}>
+            {entry.name}: <strong>{entry.value}</strong>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 export function AdminAnalytics() {
   const [dailyData, setDailyData] = useState([]);
   const [statusData, setStatusData] = useState([]);
@@ -13,19 +48,15 @@ export function AdminAnalytics() {
   const [totalDrafts, setTotalDrafts] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const COLORS = ['#eab308', '#22c55e', '#f97316', '#6b7280'];
-
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Total drafts (non-archived)
       const { count: total, error: totalError } = await supabase
         .from('content_drafts')
         .select('*', { count: 'exact', head: true })
         .is('archived_at', null);
       if (!totalError) setTotalDrafts(total || 0);
 
-      // 2. Status distribution (manual)
       const { data: allDrafts, error: statusError } = await supabase
         .from('content_drafts')
         .select('status')
@@ -37,7 +68,6 @@ export function AdminAnalytics() {
         setStatusData(formatted);
       }
 
-      // 3. Daily submissions (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { data: dailyRaw, error: dailyError } = await supabase
@@ -57,7 +87,6 @@ export function AdminAnalytics() {
         setDailyData(formatted);
       }
 
-      // 4. Average approval time (manual)
       const { data: approved, error: avgError } = await supabase
         .from('content_drafts')
         .select('created_at, updated_at')
@@ -74,7 +103,6 @@ export function AdminAnalytics() {
         setAvgApprovalTime(Math.round((totalHours / approved.length) * 10) / 10);
       }
 
-      // 5. Reviewer workload from reviewer_performance view
       const { data: reviewers, error: revError } = await supabase
         .from('reviewer_performance')
         .select('full_name, pending_count')
@@ -108,63 +136,106 @@ export function AdminAnalytics() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <div>Loading analytics...</div>;
+  if (loading) return <div style={{ padding: '24px' }}>Loading analytics...</div>;
 
   return (
-    <div>
-      <h2>Analytics Dashboard</h2>
+    <div style={{ background: '#F9FAFB', borderRadius: '24px', padding: '24px' }}>
+      <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1F2937', marginTop: 0, marginBottom: '24px' }}>
+        Analytics Dashboard
+      </h2>
 
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: '16px', marginBottom: '32px' }}>
-        <div style={{ padding: '16px', border: '1px solid #cbd5e1', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-          <div>Total Drafts</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{totalDrafts}</div>
-        </div>
-        <div style={{ padding: '16px', border: '1px solid #cbd5e1', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-          <div>Pending Reviews</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
-            {statusData.find(s => s.status === 'pending_review')?.count || 0}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '16px',
+        marginBottom: '32px'
+      }}>
+        {[
+          { label: 'Total Drafts', value: totalDrafts },
+          { label: 'Pending Reviews', value: statusData.find(s => s.status === 'pending_review')?.count || 0 },
+          { label: 'Approved Drafts', value: statusData.find(s => s.status === 'approved')?.count || 0 },
+          { label: 'Avg Approval Time', value: `${avgApprovalTime} hrs` }
+        ].map((card, idx) => (
+          <div key={idx} style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '16px',
+            border: '1px solid #E5E7EB',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{ fontSize: '14px', color: '#6B7280', marginBottom: '4px' }}>
+              {card.label}
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1F2937' }}>
+              {card.value}
+            </div>
           </div>
-        </div>
-        <div style={{ padding: '16px', border: '1px solid #cbd5e1', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-          <div>Approved Drafts</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
-            {statusData.find(s => s.status === 'approved')?.count || 0}
-          </div>
-        </div>
-        <div style={{ padding: '16px', border: '1px solid #cbd5e1', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-          <div>Avg Approval Time</div>
-          <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{avgApprovalTime} hrs</div>
-        </div>
+        ))}
       </div>
 
-      {/* Draft Submissions Chart */}
-      <div style={{ marginBottom: '32px' }}>
-        <h3>Draft Submissions (Last 30 Days)</h3>
+      {/* Draft Submissions Chart (reverted to simple Line) */}
+      <div style={{ marginBottom: '32px', backgroundColor: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1F2937', marginTop: 0, marginBottom: '16px' }}>
+          Draft Submissions (Last 30 Days)
+        </h3>
         {dailyData.length === 0 ? (
-          <p>No draft submissions in the last 30 days.</p>
+          <p style={{ color: '#6B7280', padding: '20px 0' }}>No draft submissions in the last 30 days.</p>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dailyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={(tick) => new Date(tick).toLocaleDateString()} />
-                <YAxis />
-                <Tooltip labelFormatter={(label) => new Date(label).toLocaleDateString()} />
-                <Legend />
-                <Line type="monotone" dataKey="count" stroke="#1e40af" name="Submissions" />
+              <LineChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(tick) => new Date(tick).toLocaleDateString()}
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                  axisLine={false}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 14, paddingTop: 12 }} />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke={CHART_COLORS.indigo}
+                  strokeWidth={3}
+                  dot={{ fill: CHART_COLORS.indigo, r: 4 }}
+                  activeDot={{ r: 6 }}
+                  name="Submissions"
+                />
               </LineChart>
             </ResponsiveContainer>
-            <button type="button" onClick={() => exportCSV(dailyData, 'daily_submissions')} style={{ marginTop: '8px' }}>Export CSV</button>
+            <button
+              type="button"
+              onClick={() => exportCSV(dailyData, 'daily_submissions')}
+              style={{
+                marginTop: '12px',
+                padding: '6px 16px',
+                backgroundColor: '#F3F4F6',
+                border: '1px solid #D1D5DB',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: '#374151'
+              }}
+            >
+              Export CSV
+            </button>
           </>
         )}
       </div>
 
       {/* Status Distribution Pie Chart */}
-      <div style={{ marginBottom: '32px' }}>
-        <h3>Draft Status Distribution</h3>
+      <div style={{ marginBottom: '32px', backgroundColor: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1F2937', marginTop: 0, marginBottom: '16px' }}>
+          Draft Status Distribution
+        </h3>
         {statusData.length === 0 ? (
-          <p>No status data available.</p>
+          <p style={{ color: '#6B7280', padding: '20px 0' }}>No status data available.</p>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={300}>
@@ -176,38 +247,87 @@ export function AdminAnalytics() {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label
+                  innerRadius={60}
+                  paddingAngle={4}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  labelLine={{ stroke: '#9CA3AF', strokeWidth: 1 }}
                 >
                   {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 14, paddingTop: 12 }} />
               </PieChart>
             </ResponsiveContainer>
-            <button type="button" onClick={() => exportCSV(statusData, 'status_distribution')} style={{ marginTop: '8px' }}>Export CSV</button>
+            <button
+              type="button"
+              onClick={() => exportCSV(statusData, 'status_distribution')}
+              style={{
+                marginTop: '12px',
+                padding: '6px 16px',
+                backgroundColor: '#F3F4F6',
+                border: '1px solid #D1D5DB',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: '#374151'
+              }}
+            >
+              Export CSV
+            </button>
           </>
         )}
       </div>
 
       {/* Reviewer Workload Bar Chart */}
-      <div style={{ marginBottom: '32px' }}>
-        <h3>Reviewer Workload (Pending Assignments)</h3>
+      <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1F2937', marginTop: 0, marginBottom: '16px' }}>
+          Reviewer Workload (Pending Assignments)
+        </h3>
         {reviewerWorkload.length === 0 ? (
-          <p>No active reviewers found.</p>
+          <p style={{ color: '#6B7280', padding: '20px 0' }}>No active reviewers found.</p>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={reviewerWorkload}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="full_name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="pending_count" fill="#f97316" name="Pending Assignments" />
+              <BarChart data={reviewerWorkload} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="full_name"
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                  axisLine={false}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 14, paddingTop: 12 }} />
+                <Bar
+                  dataKey="pending_count"
+                  fill={CHART_COLORS.amber}
+                  radius={[6, 6, 0, 0]}
+                  barSize={40}
+                  name="Pending Assignments"
+                />
               </BarChart>
             </ResponsiveContainer>
-            <button type="button" onClick={() => exportCSV(reviewerWorkload, 'reviewer_workload')} style={{ marginTop: '8px' }}>Export CSV</button>
+            <button
+              type="button"
+              onClick={() => exportCSV(reviewerWorkload, 'reviewer_workload')}
+              style={{
+                marginTop: '12px',
+                padding: '6px 16px',
+                backgroundColor: '#F3F4F6',
+                border: '1px solid #D1D5DB',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: '#374151'
+              }}
+            >
+              Export CSV
+            </button>
           </>
         )}
       </div>
